@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전국 대학 운동 동아리 플랫폼 | 대학 교류전 · 연합행사 정보</title>
+
+    <!-- SEO -->
+    <meta name="description" content="전국 대학 운동 동아리 정보를 한 곳에서 확인하세요. 학교·종목별 동아리 검색, 교류전 일정, 연합 행사 정보 제공. 대학 스포츠 동아리 커뮤니티 플랫폼.">
+    <meta name="keywords" content="대학 운동 동아리, 대학 스포츠 동아리, 대학 교류전, 대학 연합 동아리, 대학 농구 동아리, 대학 축구 동아리, 대학 배드민턴 동아리, 전국 대학 동아리">
+
+    <style>
+        body { margin: 0; font-family: 'Noto Sans KR', sans-serif; background: #f7f7f7; }
+        header { background: #1a237e; padding: 20px; color: #fff; }
+        nav ul { list-style: none; padding: 0; margin: 0; display: flex; gap: 20px; }
+        nav a { color: white; text-decoration: none; font-weight: bold; }
+        .section { padding: 40px; max-width: 1000px; margin: auto; }
+        h2 { margin-bottom: 10px; }
+        .box { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #ddd; }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>전국 대학 운동 동아리 플랫폼</h1>
+    <nav>
+        <ul>
+            <li><a href="#home">홈</a></li>
+            <li><a href="#clubs">운동 동아리</a></li>
+            <li><a href="#events">행사/교류전</a></li>
+            <li><a href="#contact">문의</a></li>
+        </ul>
+    </nav>
+</header>
+
+<section class="section" id="home">
+    <div class="box">
+        <h2>🔍 전국 대학 운동 동아리 정보</h2>
+        <p>종목·지역별로 대학 운동 동아리 정보를 검색하고 확인할 수 있습니다.</p>
+    </div>
+</section>
+
+<section class="section" id="clubs">
+    <div class="box">
+        <h2>🏆 인기 종목 동아리</h2>
+        <ul>
+            <li>대학교 농구 동아리</li>
+            <li>대학교 축구 동아리</li>
+            <li>대학교 배드민턴 동아리</li>
+            <li>대학교 배구 동아리</li>
+        </ul>
+    </div>
+</section>
+
+<section class="section" id="events">
+    <div class="box">
+        <h2>📅 연합 행사 · 교류전 일정</h2>
+        <p>전국 연합 행사 / 교류전 정보를 업데이트할 예정입니다.</p>
+    </div>
+</section>
+
+<section class="section" id="contact">
+    <div class="box">
+        <h2>📨 문의</h2>
+        <p>협업 및 제휴 문의는 이메일로 연락해주세요.</p>
+        <p>📧 example@email.com</p>
+    </div>
+</section>
+
+</body>
+</html>
