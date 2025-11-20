@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>경기 결과 입력 - 대학 스포츠 동아리 플랫폼</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav>
+    <a href="index.html">홈</a>
+    <a href="match.html">매칭 둘러보기</a>
+    <a href="team.html">우리팀</a>
+    <a href="profile.html">내 프로필</a>
+    <a href="match-new.html">매칭 등록하기</a>
+  </nav>
+  <div class="container">
+    <h1>경기 결과 입력</h1>
+    <p>경기가 끝난 후 승리 팀의 주장이 세트 스코어와 세부 점수를 입력합니다.</p>
+    <form>
+      <label>세트 스코어 (예: 2-1)<br><input type="text" placeholder="예: 2-1" required></label>
+      <label>세트별 점수<br><textarea rows="3" placeholder="예: 25-18, 23-25, 15-12"></textarea></label>
+      <label>승리 팀<br>
+        <select>
+          <option value="ours">우리팀</option>
+          <option value="opponent">상대팀</option>
+        </select>
+      </label>
+      <button type="submit">결과 제출</button>
+    </form>
+    <p>제출 후 상대 팀에게 승인 요청 알림이 전송됩니다.</p>
+  </div>
+</body>
+</html>

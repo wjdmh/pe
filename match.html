@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>매칭 둘러보기 - 대학 스포츠 동아리 플랫폼</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <nav>
+    <a href="index.html">홈</a>
+    <a href="match.html">매칭 둘러보기</a>
+    <a href="team.html">우리팀</a>
+    <a href="profile.html">내 프로필</a>
+    <a href="match-new.html">매칭 등록하기</a>
+  </nav>
+  <div class="container">
+    <h1>매칭 둘러보기</h1>
+    <p>필터를 사용하여 원하는 매칭을 찾아보세요.</p>
+    <form class="filters">
+      <label>날짜
+        <input type="date">
+      </label>
+      <label>지역
+        <input type="text" placeholder="예: 서울">
+      </label>
+      <label>성별
+        <select>
+          <option value="all">전체</option>
+          <option value="men">남</option>
+          <option value="women">여</option>
+          <option value="mixed">혼성</option>
+        </select>
+      </label>
+      <label>경기 방식
+        <select>
+          <option value="all">전체</option>
+          <option value="6">6인제</option>
+          <option value="9">9인제</option>
+        </select>
+      </label>
+      <button type="submit">검색</button>
+    </form>
+    <hr>
+    <h2>모집중인 매칭</h2>
+    <!-- 매칭 카드 예시 -->
+    <div class="match-card">
+      <h3>2025-11-25 18:00 / 서울 / 6인제 / 남</h3>
+      <p>희망 실력: A</p>
+      <p>팀: OO대학교 vs ?</p>
+      <p><a href="match-detail.html">상세 보기</a></p>
+    </div>
+    <div class="match-card">
+      <h3>2025-12-02 20:00 / 부산 / 9인제 / 혼성</h3>
+      <p>희망 실력: B</p>
+      <p>팀: XX대학교 vs ?</p>
+      <p><a href="match-detail.html">상세 보기</a></p>
+    </div>
+  </div>
+</body>
+</html>
