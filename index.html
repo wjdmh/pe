@@ -3,470 +3,467 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uni-League: 대학 배구 동아리 매칭</title>
+    <title>Uni-League: 대학 배구 매칭</title>
     
-    <!-- 1. 디자인 도구 (Tailwind CSS) 불러오기 -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 아이콘 불러오기 -->
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- 2. Firebase 설정 -->
+    <!-- Firebase Configuration (Placeholder) -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-      // Firebase 설정은 나중에 연결
+      // 추후 백엔드 연결 시 사용
     </script>
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;800&display=swap');
-        body { font-family: 'Pretendard', sans-serif; }
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;600;700;800&display=swap');
+        body { font-family: 'Pretendard', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        /* 애니메이션 */
+        .fade-in { animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* 스크롤바 숨김 */
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
         
-        /* 포지션별 뱃지 색상 */
-        .pos-mb { background-color: #fee2e2; color: #991b1b; } /* Center/Middle Blocker - Red */
-        .pos-s { background-color: #fef3c7; color: #92400e; } /* Setter - Yellow */
-        .pos-oh { background-color: #dbeafe; color: #1e40af; } /* Outside Hitter - Blue */
-        .pos-l { background-color: #d1fae5; color: #065f46; } /* Libero - Green */
-        .pos-op { background-color: #f3e8ff; color: #6b21a8; } /* Opposite - Purple */
+        /* 포지션 뱃지 스타일 */
+        .badge-pos { @apply w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0; }
+        .pos-mb { background-color: #fee2e2; color: #991b1b; } 
+        .pos-s { background-color: #fef3c7; color: #92400e; } 
+        .pos-oh { background-color: #dbeafe; color: #1e40af; } 
+        .pos-l { background-color: #d1fae5; color: #065f46; } 
+        .pos-op { background-color: #f3e8ff; color: #6b21a8; }
+
+        /* Glassmorphism 효과 */
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(255, 255, 255, 0.3); }
+        .glass-nav { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(16px); border-top: 1px solid rgba(0,0,0,0.05); }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-100 text-gray-800">
 
-    <!-- 모바일 화면 크기 제한 컨테이너 -->
-    <div class="max-w-md mx-auto min-h-screen bg-white shadow-2xl relative overflow-hidden">
+    <!-- 모바일 컨테이너 -->
+    <div class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative overflow-hidden">
         
-        <!-- 상단 네비게이션 -->
-        <header class="bg-indigo-600 text-white p-4 flex justify-between items-center sticky top-0 z-50 shadow-md">
-            <h1 class="text-xl font-bold italic cursor-pointer" onclick="router('home')">
-                <i class="fa-solid fa-volleyball mr-2"></i>Uni-League
-            </h1>
-            <div id="header-icons" class="hidden">
-                 <button onclick="alert('알림 기능 준비중')" class="text-white ml-4 relative">
-                    <i class="fa-regular fa-bell text-lg"></i>
-                    <span class="absolute -top-1 -right-1 bg-red-500 w-2 h-2 rounded-full"></span>
-                 </button>
+        <!-- 상단 헤더 (Glass Style) -->
+        <header class="glass fixed top-0 w-full max-w-md z-50 px-5 py-4 flex justify-between items-center">
+            <div class="flex items-center cursor-pointer" onclick="router('home')">
+                <i class="fa-solid fa-volleyball text-indigo-600 text-xl mr-2 animate-bounce"></i>
+                <span class="text-lg font-extrabold italic tracking-tighter text-slate-800">Uni-League</span>
+            </div>
+            <div id="header-actions" class="hidden flex items-center space-x-3">
+                <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full tracking-wide">CAPTAIN</span>
+                <button class="relative text-gray-400 hover:text-indigo-600 transition">
+                    <i class="fa-regular fa-bell text-xl"></i>
+                    <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+                </button>
             </div>
         </header>
+        <div class="h-16"></div> <!-- 헤더 공간 확보 -->
 
-        <!-- 메인 콘텐츠 영역 -->
-        <main id="app-container" class="p-4 pb-24">
+        <!-- 메인 콘텐츠 -->
+        <main id="app-container" class="p-5 pb-28">
             
-            <!-- 1. 인증/로그인 선택 화면 -->
-            <div id="page-auth" class="fade-in">
-                <div class="text-center mt-16 mb-12">
-                    <div class="relative inline-block">
-                        <i class="fa-solid fa-trophy text-6xl text-indigo-200 mb-4"></i>
-                        <i class="fa-solid fa-volleyball text-4xl text-indigo-600 absolute -bottom-2 -right-2 bg-white rounded-full border-4 border-white"></i>
+            <!-- 1. 인증 시작 화면 -->
+            <div id="page-auth" class="fade-in flex flex-col justify-center min-h-[80vh]">
+                <div class="text-center mb-10">
+                    <div class="inline-block relative mb-4">
+                        <div class="absolute inset-0 bg-indigo-500 blur-2xl opacity-20 rounded-full"></div>
+                        <i class="fa-solid fa-trophy text-6xl text-indigo-600 relative z-10"></i>
                     </div>
-                    <h2 class="text-3xl font-extrabold text-indigo-900 mb-2">대학 배구 동아리<br>공식 매칭 플랫폼</h2>
-                    <p class="text-gray-500 mt-2">우리 학교 동아리 인증하고<br>다른 학교와 교류전을 시작하세요.</p>
+                    <h2 class="text-3xl font-extrabold text-slate-900 mb-2 leading-tight">대학 배구의<br>새로운 리그</h2>
+                    <p class="text-slate-500 text-sm">검증된 동아리만 참여하는<br>프리미엄 매칭 플랫폼</p>
                 </div>
-                <div class="space-y-3 p-4">
-                    <button onclick="router('login')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-md transition transform active:scale-95">
-                        <i class="fa-solid fa-sign-in-alt mr-2"></i> 동아리 멤버 로그인
+                <div class="space-y-3">
+                    <button onclick="router('home')" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 transition transform active:scale-[0.98]">
+                        동아리 주장 로그인
                     </button>
-                    <button onclick="router('register')" class="w-full bg-white hover:bg-gray-50 text-gray-800 border border-gray-200 font-bold py-4 rounded-xl shadow-sm transition transform active:scale-95">
-                        새 동아리 등록하기
-                    </button>
-                </div>
-            </div>
-
-            <!-- 1-1. 로그인 화면 -->
-            <div id="page-login" class="hidden fade-in">
-                 <div class="flex items-center mb-8">
-                    <button onclick="router('auth')" class="mr-4 text-gray-500"><i class="fa-solid fa-arrow-left text-xl"></i></button>
-                    <h2 class="text-xl font-bold">로그인</h2>
-                </div>
-                <div class="space-y-4">
-                    <input type="email" id="login-email" placeholder="학교 이메일 (@ac.kr)" class="w-full p-4 bg-gray-100 rounded-xl border border-gray-200 focus:border-indigo-500 focus:outline-none transition">
-                    <input type="password" id="login-password" placeholder="비밀번호" class="w-full p-4 bg-gray-100 rounded-xl border border-gray-200 focus:border-indigo-500 focus:outline-none transition">
-                    
-                    <button onclick="handleLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95">
-                        로그인
+                    <button onclick="alert('데모 버전입니다. 로그인을 이용해주세요.')" class="w-full bg-white text-slate-700 font-bold py-4 rounded-2xl border border-slate-200 hover:bg-gray-50 transition transform active:scale-[0.98]">
+                        새 동아리 등록
                     </button>
                 </div>
             </div>
 
-            <!-- 1-2. 회원가입 화면 (생략 - 이전과 동일, 필요시 요청) -->
-             <div id="page-register" class="hidden fade-in">
-                 <div class="flex items-center mb-8">
-                    <button onclick="router('auth')" class="mr-4 text-gray-500"><i class="fa-solid fa-arrow-left text-xl"></i></button>
-                    <h2 class="text-xl font-bold">새 동아리 등록</h2>
-                </div>
-                <div class="space-y-4 text-center py-10">
-                    <i class="fa-solid fa-screwdriver-wrench text-4xl text-gray-300 mb-4"></i>
-                    <p class="text-gray-500">데모 버전에서는 로그인을 이용해주세요.</p>
-                    <button onclick="router('login')" class="text-indigo-600 font-bold underline">로그인 화면으로</button>
-                </div>
-            </div>
-
-            <!-- 2. 홈 화면 (매칭 리스트 + 순위) -->
+            <!-- 2. 홈 (매치 찾기) -->
             <div id="page-home" class="hidden fade-in">
-                <!-- 상단 환영 문구 -->
-                <div class="flex justify-between items-end mb-6">
-                    <div>
-                        <p class="text-sm text-gray-500">오늘도 나이스 서브! 🏐</p>
-                        <h2 class="text-2xl font-bold text-gray-800">매칭 찾기</h2>
-                    </div>
-                    <button onclick="router('write-post')" class="bg-black text-white w-12 h-12 rounded-full shadow-lg flex items-center justify-center hover:bg-gray-800 active:scale-90 transition">
-                        <i class="fa-solid fa-pen text-lg"></i>
-                    </button>
+                <div class="mb-6 pt-2">
+                    <p class="text-xs text-slate-500 font-medium mb-1">오늘 컨디션 어때요?</p>
+                    <h2 class="text-2xl font-bold text-slate-800">주장님, <br>매칭을 찾아볼까요? 🔥</h2>
                 </div>
 
-                <!-- 필터 버튼들 -->
-                <div class="flex space-x-2 overflow-x-auto pb-4 scrollbar-hide mb-2">
-                    <button class="px-4 py-2 bg-indigo-600 text-white rounded-full text-sm font-bold whitespace-nowrap shadow-sm">전체</button>
-                    <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-sm font-bold whitespace-nowrap">9인제</button>
-                    <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-sm font-bold whitespace-nowrap">6인제</button>
-                    <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-sm font-bold whitespace-nowrap">혼성</button>
-                    <button class="px-4 py-2 bg-white border border-gray-200 text-gray-600 rounded-full text-sm font-bold whitespace-nowrap">여자부</button>
+                <!-- 필터 버튼 -->
+                <div class="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide mb-4">
+                    <button onclick="filterMatches('all', this)" class="filter-btn bg-indigo-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-md transition shrink-0">전체</button>
+                    <button onclick="filterMatches('9man', this)" class="filter-btn bg-white text-slate-500 border border-slate-200 px-4 py-2 rounded-full text-xs font-bold shrink-0 hover:bg-gray-50 transition">9인제</button>
+                    <button onclick="filterMatches('6man', this)" class="filter-btn bg-white text-slate-500 border border-slate-200 px-4 py-2 rounded-full text-xs font-bold shrink-0 hover:bg-gray-50 transition">6인제</button>
+                    <button onclick="filterMatches('male', this)" class="filter-btn bg-white text-slate-500 border border-slate-200 px-4 py-2 rounded-full text-xs font-bold shrink-0 hover:bg-gray-50 transition">남자부</button>
+                    <button onclick="filterMatches('female', this)" class="filter-btn bg-white text-slate-500 border border-slate-200 px-4 py-2 rounded-full text-xs font-bold shrink-0 hover:bg-gray-50 transition">여자부</button>
+                    <button onclick="filterMatches('mixed', this)" class="filter-btn bg-white text-slate-500 border border-slate-200 px-4 py-2 rounded-full text-xs font-bold shrink-0 hover:bg-gray-50 transition">혼성</button>
                 </div>
 
-                <!-- 매칭 카드 리스트 -->
-                <div class="space-y-4 mb-10">
-                    <!-- 카드 1 -->
-                    <div onclick="router('match-detail')" class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer active:scale-[0.99]">
-                        <div class="flex justify-between items-start mb-3">
-                            <div class="flex space-x-2">
-                                <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-2 py-1 rounded">9인제</span>
-                                <span class="bg-pink-100 text-pink-700 text-xs font-bold px-2 py-1 rounded">혼성</span>
-                            </div>
-                            <span class="text-xs text-gray-400">방금 전</span>
-                        </div>
-                        <h3 class="font-bold text-lg mb-1">한신대 비상 vs 연습경기 하실 팀!</h3>
-                        <div class="text-sm text-gray-600 space-y-1 mt-2">
-                            <p><i class="fa-regular fa-calendar mr-2 text-gray-400"></i> 11월 24일 (금) 18:00</p>
-                            <p><i class="fa-solid fa-location-dot mr-2 text-gray-400"></i> 한신대학교 체육관</p>
-                        </div>
-                    </div>
+                <!-- 매칭 리스트 (JS로 렌더링) -->
+                <div id="match-list-container" class="space-y-4 mb-10 min-h-[300px]">
+                    <!-- JavaScript가 여기에 카드를 채워넣습니다 -->
+                </div>
 
-                    <!-- 카드 2 -->
-                    <div onclick="router('match-detail')" class="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm hover:shadow-md transition cursor-pointer active:scale-[0.99]">
-                        <div class="flex justify-between items-start mb-3">
-                            <div class="flex space-x-2">
-                                <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded">6인제</span>
-                                <span class="bg-blue-50 text-blue-600 text-xs font-bold px-2 py-1 rounded">남자</span>
-                            </div>
-                            <span class="text-xs text-gray-400">30분 전</span>
-                        </div>
-                        <h3 class="font-bold text-lg mb-1">고려대 KUVC 교류전 구합니다</h3>
-                        <div class="text-sm text-gray-600 space-y-1 mt-2">
-                            <p><i class="fa-regular fa-calendar mr-2 text-gray-400"></i> 11월 26일 (일) 14:00</p>
-                            <p><i class="fa-solid fa-location-dot mr-2 text-gray-400"></i> 서울 어딘가 (체육관 대관 필요)</p>
-                        </div>
+                <!-- 플로팅 액션 버튼 (글쓰기) -->
+                <button onclick="router('write-post')" class="fixed bottom-24 right-5 w-14 h-14 bg-slate-900 text-white rounded-full shadow-2xl shadow-slate-900/40 flex items-center justify-center hover:scale-110 transition z-40">
+                    <i class="fa-solid fa-plus text-xl"></i>
+                </button>
+
+                <!-- 랭킹 섹션 -->
+                <div class="mt-10 pt-8 border-t border-gray-200">
+                    <div class="flex justify-between items-end mb-5">
+                        <h3 class="font-bold text-lg text-slate-800">🏆 실시간 랭킹</h3>
+                        <span class="text-[10px] text-slate-400">승률 기준</span>
+                    </div>
+                    <div class="bg-white rounded-2xl p-1 shadow-sm border border-slate-100">
+                        <table class="w-full text-sm text-left">
+                            <tbody class="divide-y divide-slate-50">
+                                <tr class="hover:bg-slate-50"><td class="p-3 font-bold text-yellow-500 w-8">1</td><td class="font-bold text-slate-700">한체대 KNSU</td><td class="text-right p-3 font-bold text-indigo-600">92%</td></tr>
+                                <tr class="hover:bg-slate-50"><td class="p-3 font-bold text-slate-400 w-8">2</td><td class="font-bold text-slate-700">한신대 비상</td><td class="text-right p-3 font-bold text-indigo-600">88%</td></tr>
+                                <tr class="hover:bg-slate-50"><td class="p-3 font-bold text-slate-400 w-8">3</td><td class="font-bold text-slate-700">연세대 배구부</td><td class="text-right p-3 font-bold text-indigo-600">85%</td></tr>
+                                <tr class="hover:bg-slate-50"><td class="p-3 font-bold text-slate-300 w-8">4</td><td class="text-slate-600">서울대학교</td><td class="text-right p-3 text-slate-400">70%</td></tr>
+                                <tr class="hover:bg-slate-50"><td class="p-3 font-bold text-slate-300 w-8">5</td><td class="text-slate-600">고려대학교</td><td class="text-right p-3 text-slate-400">60%</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 팀 관리 (라커룸) -->
+            <div id="page-locker" class="hidden fade-in">
+                <div class="flex items-center justify-between mb-6 pt-2">
+                    <h2 class="text-2xl font-bold text-slate-800">마이 팀 라커룸</h2>
+                    <div class="flex items-center bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100">
+                         <span class="text-[10px] font-bold text-slate-400 mr-2">관리 모드</span>
+                         <button onclick="toggleEditMode()" id="edit-toggle-btn" class="w-8 h-4 bg-slate-200 rounded-full relative transition-colors duration-300">
+                             <div class="w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-300 absolute top-0 left-0"></div>
+                         </button>
                     </div>
                 </div>
 
-                <!-- 순위표 섹션 (요청 사항) -->
-                <div class="mt-8 pt-8 border-t border-gray-100">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="font-bold text-lg"><i class="fa-solid fa-ranking-star text-yellow-500 mr-2"></i>대학 리그 랭킹</h3>
-                        <span class="text-xs text-gray-400">최근 10경기 승률 기준</span>
+                <!-- 팀 프로필 -->
+                <div class="bg-white rounded-3xl p-6 mb-6 shadow-sm border border-indigo-50 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-24 h-24 bg-indigo-500 blur-3xl opacity-10 -mr-10 -mt-10 rounded-full"></div>
+                    <div class="flex items-center mb-6 relative z-10">
+                        <div class="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center text-3xl shadow-inner mr-4">🦅</div>
+                        <div>
+                            <h3 class="text-xl font-extrabold text-slate-900">한신대 비상</h3>
+                            <p class="text-indigo-500 text-xs font-bold tracking-wider uppercase">Hanshin Univ. Bisang</p>
+                        </div>
+                    </div>
+                    <div class="flex justify-between text-center bg-slate-50 rounded-2xl p-4">
+                        <div><p class="text-[10px] text-slate-400 font-bold mb-1">경기수</p><p class="font-extrabold text-slate-700">25</p></div>
+                        <div><p class="text-[10px] text-slate-400 font-bold mb-1">승리</p><p class="font-extrabold text-indigo-600">22</p></div>
+                        <div><p class="text-[10px] text-slate-400 font-bold mb-1">승률</p><p class="font-extrabold text-slate-700">88%</p></div>
+                    </div>
+                </div>
+
+                <!-- 선수 명단 -->
+                <div class="mb-20">
+                    <div class="flex justify-between items-center mb-3 px-1">
+                        <h3 class="font-bold text-slate-700">ROSTER <span class="text-indigo-500 text-sm ml-1" id="roster-count">0</span></h3>
                     </div>
                     
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <!-- 랭킹 리스트 -->
-                        <div class="divide-y divide-gray-50">
-                            <div class="flex items-center p-4 hover:bg-gray-50">
-                                <span class="w-6 font-bold text-yellow-600 text-lg italic">1</span>
-                                <div class="flex-1 ml-3">
-                                    <p class="font-bold text-sm">한체대 KNSU</p>
-                                </div>
-                                <span class="font-bold text-sm text-indigo-600">92%</span>
-                            </div>
-                            <div class="flex items-center p-4 hover:bg-gray-50">
-                                <span class="w-6 font-bold text-gray-400 text-lg italic">2</span>
-                                <div class="flex-1 ml-3">
-                                    <p class="font-bold text-sm">한신대학교 비상</p>
-                                </div>
-                                <span class="font-bold text-sm text-indigo-600">88%</span>
-                            </div>
-                            <div class="flex items-center p-4 hover:bg-gray-50">
-                                <span class="w-6 font-bold text-amber-700 text-lg italic">3</span>
-                                <div class="flex-1 ml-3">
-                                    <p class="font-bold text-sm">연세대학교 배구부</p>
-                                </div>
-                                <span class="font-bold text-sm text-indigo-600">85%</span>
-                            </div>
-                            <div class="flex items-center p-4 hover:bg-gray-50">
-                                <span class="w-6 font-bold text-gray-300 text-sm">4</span>
-                                <div class="flex-1 ml-3">
-                                    <p class="font-bold text-sm text-gray-600">서울대학교</p>
-                                </div>
-                                <span class="font-bold text-sm text-gray-500">70%</span>
-                            </div>
-                            <div class="flex items-center p-4 hover:bg-gray-50">
-                                <span class="w-6 font-bold text-gray-300 text-sm">5</span>
-                                <div class="flex-1 ml-3">
-                                    <p class="font-bold text-sm text-gray-600">서원대학교</p>
-                                </div>
-                                <span class="font-bold text-sm text-gray-500">65%</span>
-                            </div>
-                             <div class="flex items-center p-4 hover:bg-gray-50">
-                                <span class="w-6 font-bold text-gray-300 text-sm">6</span>
-                                <div class="flex-1 ml-3">
-                                    <p class="font-bold text-sm text-gray-600">고려대학교</p>
-                                </div>
-                                <span class="font-bold text-sm text-gray-500">60%</span>
-                            </div>
-                        </div>
-                        <div class="bg-gray-50 p-3 text-center text-xs text-gray-400 cursor-pointer">
-                            전체 순위 보기 <i class="fa-solid fa-chevron-right ml-1"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 3. 공고 등록 화면 -->
-            <div id="page-write-post" class="hidden fade-in">
-                <div class="flex items-center mb-6">
-                    <button onclick="router('home')" class="mr-4 text-gray-500"><i class="fa-solid fa-arrow-left text-xl"></i></button>
-                    <h2 class="text-xl font-bold">매칭 모집하기</h2>
-                </div>
-                
-                <div class="space-y-6">
-                    <!-- 경기 방식 선택 -->
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">경기 방식</label>
-                        <div class="grid grid-cols-2 gap-3">
-                            <button class="p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold">9인제</button>
-                            <button class="p-3 rounded-xl border border-gray-200 text-gray-500">6인제</button>
-                        </div>
+                    <div id="roster-list" class="space-y-3">
+                        <!-- JS로 선수 명단 렌더링 -->
                     </div>
 
-                    <!-- 성별 선택 -->
-                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">참여 성별</label>
-                        <div class="grid grid-cols-3 gap-3">
-                            <button class="p-3 rounded-xl border border-gray-200 text-gray-500 text-sm">남자</button>
-                            <button class="p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50 text-indigo-700 font-bold text-sm">혼성</button>
-                            <button class="p-3 rounded-xl border border-gray-200 text-gray-500 text-sm">여자</button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">날짜 및 시간</label>
-                        <input type="datetime-local" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 outline-none">
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">장소</label>
-                        <input type="text" placeholder="예: 한신대 체육관" class="w-full p-3 bg-gray-50 rounded-xl border border-gray-200 outline-none">
-                    </div>
-
-                    <button onclick="alert('등록 완료!'); router('home');" class="w-full bg-black text-white font-bold py-4 rounded-xl shadow-lg mt-4">
-                        등록하기
-                    </button>
-                </div>
-            </div>
-
-            <!-- 4. 매칭 상세 정보 화면 (교류전 신청 시 노출) -->
-             <div id="page-match-detail" class="hidden fade-in">
-                 <div class="relative h-48 bg-gradient-to-r from-indigo-600 to-blue-500 -mx-4 -mt-4 mb-6 p-6 flex items-end">
-                    <button onclick="router('home')" class="absolute top-4 left-4 text-white bg-white/20 rounded-full w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-arrow-left"></i></button>
-                    <div class="text-white">
+                    <!-- 선수 추가 폼 (관리 모드일 때만 표시) -->
+                    <div id="add-player-form" class="hidden mt-4 bg-slate-100 p-4 rounded-2xl animate-pulse">
+                        <p class="text-xs font-bold text-slate-500 mb-2">새 선수 등록</p>
                         <div class="flex space-x-2 mb-2">
-                            <span class="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-xs">9인제</span>
-                            <span class="bg-white/20 backdrop-blur-sm px-2 py-0.5 rounded text-xs">혼성</span>
+                            <input type="text" id="new-player-name" placeholder="이름" class="flex-1 p-2 rounded-lg text-sm border-none focus:ring-2 focus:ring-indigo-500">
+                            <select id="new-player-pos" class="p-2 rounded-lg text-sm border-none focus:ring-2 focus:ring-indigo-500 w-20">
+                                <option value="L">L</option>
+                                <option value="S">S</option>
+                                <option value="OH">OH</option>
+                                <option value="OP">OP</option>
+                                <option value="MB">MB</option>
+                            </select>
                         </div>
-                        <h2 class="text-2xl font-bold">한신대 비상</h2>
-                        <p class="opacity-90 text-sm"><i class="fa-solid fa-location-dot mr-1"></i> 한신대학교 체육관</p>
+                        <button onclick="addPlayer()" class="w-full bg-slate-800 text-white text-xs font-bold py-3 rounded-xl hover:bg-slate-700">등록하기</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. 매치 메이킹 (글쓰기) -->
+            <div id="page-write-post" class="hidden fade-in">
+                <div class="flex items-center mb-8 pt-2">
+                    <button onclick="router('home')" class="mr-4 w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm"><i class="fa-solid fa-arrow-left"></i></button>
+                    <h2 class="text-2xl font-bold text-slate-800">매치 메이킹</h2>
+                </div>
+                <div class="space-y-6">
+                    <!-- 섹션들 (이전과 동일하게 유지하되 디자인만 다듬음) -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Game Type</label>
+                        <div class="grid grid-cols-2 gap-3">
+                            <button class="p-4 rounded-2xl bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-500/30">9인제</button>
+                            <button class="p-4 rounded-2xl bg-white text-slate-400 border border-slate-200 font-medium">6인제</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Details</label>
+                        <input type="text" placeholder="장소 (예: 한신대 체육관)" class="w-full p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm outline-none focus:ring-2 focus:ring-indigo-500 mb-3">
+                        <input type="datetime-local" class="w-full p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button onclick="alert('매칭 공고가 등록되었습니다!'); router('home');" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl mt-4">모집 시작하기</button>
+                </div>
+            </div>
+
+             <!-- 5. 매칭 상세 -->
+             <div id="page-match-detail" class="hidden fade-in">
+                 <!-- 헤더 이미지 영역 -->
+                 <div class="relative h-64 bg-slate-800 -mx-5 -mt-5 mb-6 p-6 flex flex-col justify-end overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1612872087720-48ca45ddce4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="absolute inset-0 w-full h-full object-cover opacity-40">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent"></div>
+                    
+                    <button onclick="router('home')" class="absolute top-4 left-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20"><i class="fa-solid fa-arrow-left"></i></button>
+                    
+                    <div class="relative z-10">
+                        <div class="flex space-x-2 mb-3">
+                            <span id="detail-badge-type" class="bg-indigo-500 text-white text-[10px] font-bold px-2 py-1 rounded">9인제</span>
+                            <span id="detail-badge-gender" class="bg-white/20 backdrop-blur-md text-white text-[10px] font-bold px-2 py-1 rounded">혼성</span>
+                        </div>
+                        <h2 id="detail-title" class="text-3xl font-extrabold text-white leading-tight mb-1">한신대 비상</h2>
+                        <p class="text-slate-300 text-sm"><i class="fa-solid fa-location-dot mr-1"></i> 한신대학교 체육관</p>
                     </div>
                 </div>
 
-                <div class="space-y-6">
-                    <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-                        <h3 class="font-bold mb-3 text-gray-800">매칭 정보</h3>
-                        <div class="space-y-3 text-sm">
-                            <div class="flex justify-between">
-                                <span class="text-gray-500">일시</span>
-                                <span class="font-medium">11월 24일 (금) 18:00</span>
+                <div class="space-y-6 px-2">
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+                        <h3 class="font-bold text-slate-800 mb-4 text-sm uppercase tracking-wider">Match Info</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mr-3"><i class="fa-regular fa-clock"></i></div>
+                                <div><p class="text-xs text-slate-400">일시</p><p class="font-bold text-slate-700" id="detail-time">11월 24일 (금) 18:00</p></div>
                             </div>
-                            <div class="flex justify-between">
-                                <span class="text-gray-500">장소</span>
-                                <span class="font-medium">한신대학교 체육관</span>
-                            </div>
-                             <div class="flex justify-between">
-                                <span class="text-gray-500">비용</span>
-                                <span class="font-medium">체육관 대관료 N/1</span>
+                             <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center text-pink-600 mr-3"><i class="fa-solid fa-won-sign"></i></div>
+                                <div><p class="text-xs text-slate-400">비용</p><p class="font-bold text-slate-700">체육관 대관료 N/1</p></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
-                        <h3 class="font-bold mb-3 text-gray-800">호스트 팀 한마디</h3>
-                        <p class="text-sm text-gray-600 leading-relaxed">
-                            안녕하세요! 즐겁게 게임하실 팀 구합니다.<br>
-                            실력은 중~상 정도 됩니다. 매너 게임 지향합니다!<br>
-                            끝나고 회식도 가능해요~
-                        </p>
-                    </div>
-
-                    <button class="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg transition transform active:scale-95">
-                        <i class="fa-regular fa-paper-plane mr-2"></i> 교류전 신청하기
+                    <button onclick="sendChallenge()" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 transition transform active:scale-[0.98]">
+                        <i class="fa-solid fa-paper-plane mr-2"></i> 도전장 보내기
                     </button>
                 </div>
              </div>
 
-            <!-- 5. 팀 관리 화면 (요청사항 반영) -->
-            <div id="page-team-mgmt" class="hidden fade-in">
-                <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-2xl font-bold">우리 팀 현황</h2>
-                    <button onclick="alert('설정')" class="text-gray-400"><i class="fa-solid fa-cog"></i></button>
-                </div>
-
-                <!-- 팀 프로필 카드 -->
-                <div class="bg-white rounded-2xl shadow-lg p-6 mb-6 border border-indigo-50 text-center">
-                    <div class="w-20 h-20 bg-indigo-100 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl">🦅</div>
-                    <h3 class="text-2xl font-extrabold text-gray-900">한신대학교 비상</h3>
-                    <p class="text-indigo-600 font-medium text-sm mb-4">Hanshin Univ. Bisang</p>
-                    
-                    <div class="grid grid-cols-3 gap-2 text-center border-t border-gray-100 pt-4">
-                        <div>
-                            <p class="text-xs text-gray-400">승률</p>
-                            <p class="font-bold text-gray-800">88%</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-400">승</p>
-                            <p class="font-bold text-gray-800">22</p>
-                        </div>
-                        <div>
-                            <p class="text-xs text-gray-400">패</p>
-                            <p class="font-bold text-gray-800">3</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 선수 명단 (요청사항 반영) -->
-                <div>
-                    <div class="flex justify-between items-center mb-3 px-1">
-                        <h3 class="font-bold text-lg">등록 선수 명단 (6명)</h3>
-                        <button class="text-xs text-indigo-600 font-bold">+ 관리</button>
-                    </div>
-                    
-                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <!-- MB: Middle Blocker (센터) -->
-                        <div class="flex items-center p-4 border-b border-gray-50">
-                            <span class="w-10 h-10 rounded-full pos-mb flex items-center justify-center font-bold text-xs shrink-0">MB</span>
-                            <div class="ml-3 flex-1">
-                                <p class="font-bold text-gray-800">정무현</p>
-                                <p class="text-xs text-gray-400">주장 / 센터</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center p-4 border-b border-gray-50">
-                            <span class="w-10 h-10 rounded-full pos-mb flex items-center justify-center font-bold text-xs shrink-0">MB</span>
-                            <div class="ml-3 flex-1">
-                                <p class="font-bold text-gray-800">이강민</p>
-                                <p class="text-xs text-gray-400">센터</p>
-                            </div>
-                        </div>
-                        <!-- S: Setter (세터) -->
-                        <div class="flex items-center p-4 border-b border-gray-50">
-                            <span class="w-10 h-10 rounded-full pos-s flex items-center justify-center font-bold text-xs shrink-0">S</span>
-                            <div class="ml-3 flex-1">
-                                <p class="font-bold text-gray-800">윤재혁</p>
-                                <p class="text-xs text-gray-400">세터</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center p-4 border-b border-gray-50">
-                            <span class="w-10 h-10 rounded-full pos-s flex items-center justify-center font-bold text-xs shrink-0">S</span>
-                            <div class="ml-3 flex-1">
-                                <p class="font-bold text-gray-800">임기주</p>
-                                <p class="text-xs text-gray-400">세터</p>
-                            </div>
-                        </div>
-                         <!-- OH: Outside Hitter (레프트) -->
-                         <div class="flex items-center p-4 border-b border-gray-50">
-                            <span class="w-10 h-10 rounded-full pos-oh flex items-center justify-center font-bold text-xs shrink-0">OH</span>
-                            <div class="ml-3 flex-1">
-                                <p class="font-bold text-gray-800">이준우</p>
-                                <p class="text-xs text-gray-400">레프트</p>
-                            </div>
-                        </div>
-                        <!-- L: Libero (리베로) -->
-                        <div class="flex items-center p-4">
-                            <span class="w-10 h-10 rounded-full pos-l flex items-center justify-center font-bold text-xs shrink-0">L</span>
-                            <div class="ml-3 flex-1">
-                                <p class="font-bold text-gray-800">김석환</p>
-                                <p class="text-xs text-gray-400">리베로</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </main>
 
-        <!-- 하단 탭바 -->
-        <nav class="fixed bottom-0 max-w-md w-full bg-white border-t border-gray-100 flex justify-around py-3 pb-6 z-50 text-gray-400">
-            <button onclick="router('home')" id="nav-home" class="flex flex-col items-center text-indigo-600 transition">
+        <!-- 하단 탭바 (Glass Style) -->
+        <nav class="glass-nav fixed bottom-0 w-full max-w-md z-50 pb-6 pt-3 px-6 flex justify-between items-center text-gray-400">
+            <button onclick="router('home')" id="nav-home" class="flex flex-col items-center text-indigo-600 transition transform active:scale-90">
                 <i class="fa-solid fa-house text-xl mb-1"></i>
-                <span class="text-[10px] font-medium">매칭 홈</span>
             </button>
-            <button onclick="router('team-mgmt')" id="nav-team" class="flex flex-col items-center hover:text-indigo-600 transition">
-                <i class="fa-solid fa-users-gear text-xl mb-1"></i>
-                <span class="text-[10px] font-medium">팀 관리</span>
+            <button onclick="router('locker')" id="nav-locker" class="flex flex-col items-center hover:text-indigo-600 transition transform active:scale-90">
+                <i class="fa-solid fa-shirt text-xl mb-1"></i>
             </button>
-            <button onclick="router('auth')" id="nav-profile" class="flex flex-col items-center hover:text-indigo-600 transition">
+            <button onclick="router('auth')" class="flex flex-col items-center hover:text-indigo-600 transition transform active:scale-90">
                 <i class="fa-solid fa-right-from-bracket text-xl mb-1"></i>
-                <span class="text-[10px] font-medium">로그아웃</span>
             </button>
         </nav>
 
     </div>
 
     <script>
-        // 라우터
-        function router(pageName) {
-            const pageMap = {
-                'auth': 'page-auth',
-                'login': 'page-login',
-                'register': 'page-register',
-                'home': 'page-home',
-                'write-post': 'page-write-post',
-                'match-detail': 'page-match-detail',
-                'team-mgmt': 'page-team-mgmt'
-            };
-            
-            // 전체 숨김
-            Object.values(pageMap).forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.classList.add('hidden');
+        // ------------------- Data (Mock) -------------------
+        
+        // 1. 매칭 공고 데이터 (5개)
+        const matches = [
+            { id: 1, team: '한신대 비상', type: '9man', gender: 'mixed', time: '11/24 18:00', loc: '한신대 체육관', badge: '모집중', badgeColor: 'bg-indigo-100 text-indigo-600' },
+            { id: 2, team: '고려대 KUVC', type: '6man', gender: 'male', time: '11/26 14:00', loc: '원정 희망', badge: '원정', badgeColor: 'bg-slate-100 text-slate-600' },
+            { id: 3, team: '이화여대 EAVC', type: '6man', gender: 'female', time: '11/27 19:00', loc: '이대 체육관', badge: '모집중', badgeColor: 'bg-indigo-100 text-indigo-600' },
+            { id: 4, team: '연세대 배구부', type: '9man', gender: 'male', time: '11/25 10:00', loc: '신촌', badge: '마감임박', badgeColor: 'bg-red-100 text-red-600' },
+            { id: 5, team: '서울시립대', type: '6man', gender: 'mixed', time: '11/28 18:00', loc: '시립대', badge: '친선', badgeColor: 'bg-green-100 text-green-600' }
+        ];
+
+        // 2. 우리 팀 선수 명단 (초기 데이터)
+        let roster = [
+            { id: 1, name: '정무현', pos: 'MB', role: 'Captain' },
+            { id: 2, name: '이강민', pos: 'MB', role: '' },
+            { id: 3, name: '윤재혁', pos: 'S', role: '' },
+            { id: 4, name: '이준우', pos: 'OH', role: '' },
+            { id: 5, name: '임기주', pos: 'S', role: '' },
+            { id: 6, name: '김석환', pos: 'L', role: '' }
+        ];
+
+        let isEditMode = false; // 관리 모드 상태
+
+        // ------------------- Logic -------------------
+
+        // 1. 매칭 리스트 렌더링 & 필터링
+        function renderMatches(filterType = 'all') {
+            const container = document.getElementById('match-list-container');
+            container.innerHTML = ''; // 초기화
+
+            const filtered = matches.filter(m => {
+                if (filterType === 'all') return true;
+                if (filterType === 'male') return m.gender === 'male';
+                if (filterType === 'female') return m.gender === 'female';
+                if (filterType === 'mixed') return m.gender === 'mixed';
+                return m.type === filterType;
             });
-            
-            // 선택 표시
-            const targetEl = document.getElementById(pageMap[pageName]);
-            if (targetEl) targetEl.classList.remove('hidden');
 
-            // 상단 헤더 및 하단 탭바 제어
-            const isAuthPage = ['auth', 'login', 'register'].includes(pageName);
-            
-            // 탭바 색상 업데이트
-            document.getElementById('nav-home').className = pageName === 'home' ? 'flex flex-col items-center text-indigo-600' : 'flex flex-col items-center text-gray-400 hover:text-indigo-600';
-            document.getElementById('nav-team').className = pageName === 'team-mgmt' ? 'flex flex-col items-center text-indigo-600' : 'flex flex-col items-center text-gray-400 hover:text-indigo-600';
-
-            if (pageName === 'home') {
-                 document.getElementById('header-icons').classList.remove('hidden');
-            } else {
-                 document.getElementById('header-icons').classList.add('hidden');
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">조건에 맞는 매칭이 없습니다.</div>`;
+                return;
             }
+
+            filtered.forEach(m => {
+                const genderLabel = m.gender === 'male' ? '남자' : (m.gender === 'female' ? '여자' : '혼성');
+                const typeLabel = m.type === '9man' ? '9인제' : '6인제';
+                
+                const html = `
+                    <div onclick="openMatchDetail(${m.id})" class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition active:scale-[0.98] cursor-pointer">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex space-x-1">
+                                <span class="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">${typeLabel}</span>
+                                <span class="px-2 py-1 rounded-md bg-slate-100 text-slate-600 text-[10px] font-bold">${genderLabel}</span>
+                            </div>
+                            <span class="${m.badgeColor} text-[10px] font-bold px-2 py-1 rounded-full">${m.badge}</span>
+                        </div>
+                        <h3 class="font-bold text-lg text-slate-800 mb-1">${m.team}</h3>
+                        <div class="flex items-center text-xs text-slate-500 mt-2 space-x-3">
+                            <span><i class="fa-regular fa-clock mr-1"></i> ${m.time}</span>
+                            <span><i class="fa-solid fa-location-dot mr-1"></i> ${m.loc}</span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        // 필터 버튼 클릭 핸들러
+        function filterMatches(type, btn) {
+            // 버튼 스타일 초기화
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                b.classList.remove('bg-indigo-600', 'text-white');
+                b.classList.add('bg-white', 'text-slate-500');
+            });
+            // 선택된 버튼 활성화
+            btn.classList.remove('bg-white', 'text-slate-500');
+            btn.classList.add('bg-indigo-600', 'text-white');
             
-            window.scrollTo(0, 0);
+            renderMatches(type);
         }
 
-        function handleLogin() {
-            // 임시 로그인 처리
-            router('home');
+        // 2. 상세 페이지 데이터 바인딩
+        function openMatchDetail(id) {
+            const m = matches.find(item => item.id === id);
+            if(!m) return;
+
+            document.getElementById('detail-title').innerText = m.team;
+            document.getElementById('detail-time').innerText = m.time;
+            document.getElementById('detail-badge-type').innerText = m.type === '9man' ? '9인제' : '6인제';
+            document.getElementById('detail-badge-gender').innerText = m.gender === 'male' ? '남자' : (m.gender === 'female' ? '여자' : '혼성');
+
+            router('match-detail');
         }
 
-        window.onload = function() {
-            router('auth'); // 시작 페이지
+        // 도전장 보내기
+        function sendChallenge() {
+            if(confirm('상대 팀 주장에게 교류전 제안을 보내시겠습니까?')) {
+                alert('🚀 도전장이 성공적으로 전송되었습니다!\n상대방이 수락하면 알림을 보내드립니다.');
+                router('home');
+            }
+        }
+
+        // 3. 라커룸(팀 관리) 로직
+        function renderRoster() {
+            const container = document.getElementById('roster-list');
+            document.getElementById('roster-count').innerText = roster.length;
+            container.innerHTML = '';
+
+            roster.forEach(p => {
+                let deleteBtn = '';
+                if (isEditMode) {
+                    deleteBtn = `<button onclick="deletePlayer(${p.id})" class="text-red-500 ml-3 text-sm"><i class="fa-solid fa-circle-minus"></i></button>`;
+                }
+
+                const roleBadge = p.role === 'Captain' ? '<i class="fa-solid fa-crown text-yellow-500 ml-1 text-xs"></i>' : '';
+                const posClass = `pos-${p.pos.toLowerCase()}`;
+
+                const html = `
+                    <div class="flex items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
+                        <div class="badge-pos ${posClass}">${p.pos}</div>
+                        <div class="ml-3 flex-1">
+                            <p class="text-sm font-bold text-slate-800">${p.name} ${roleBadge}</p>
+                        </div>
+                        ${deleteBtn}
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        function toggleEditMode() {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('edit-toggle-btn');
+            const indicator = btn.querySelector('div');
+            const form = document.getElementById('add-player-form');
+
+            if (isEditMode) {
+                btn.classList.replace('bg-slate-200', 'bg-indigo-500');
+                indicator.classList.replace('left-0', 'translate-x-4');
+                form.classList.remove('hidden');
+            } else {
+                btn.classList.replace('bg-indigo-500', 'bg-slate-200');
+                indicator.classList.remove('translate-x-4');
+                indicator.classList.add('left-0');
+                form.classList.add('hidden');
+            }
+            renderRoster();
+        }
+
+        function addPlayer() {
+            const name = document.getElementById('new-player-name').value;
+            const pos = document.getElementById('new-player-pos').value;
+
+            if (!name) return alert('이름을 입력해주세요.');
+
+            roster.push({ id: Date.now(), name: name, pos: pos, role: '' });
+            document.getElementById('new-player-name').value = ''; // 초기화
+            renderRoster();
+        }
+
+        function deletePlayer(id) {
+            if(confirm('정말 삭제하시겠습니까?')) {
+                roster = roster.filter(p => p.id !== id);
+                renderRoster();
+            }
+        }
+
+        // 4. 라우터
+        function router(page) {
+            const pages = ['auth', 'home', 'locker', 'write-post', 'match-detail'];
+            pages.forEach(p => document.getElementById(`page-${p}`).classList.add('hidden'));
+            document.getElementById(`page-${page}`).classList.remove('hidden');
+
+            // 헤더 & 탭바 제어
+            const headerActions = document.getElementById('header-actions');
+            if(page === 'home' || page === 'locker') headerActions.classList.remove('hidden');
+            else headerActions.classList.add('hidden');
+
+            // 탭 활성화
+            document.getElementById('nav-home').className = page === 'home' ? 'flex flex-col items-center text-indigo-600' : 'flex flex-col items-center text-gray-400';
+            document.getElementById('nav-locker').className = page === 'locker' ? 'flex flex-col items-center text-indigo-600' : 'flex flex-col items-center text-gray-400';
+
+            window.scrollTo(0,0);
+        }
+
+        // 초기 실행
+        window.onload = () => {
+            renderMatches('all');
+            renderRoster();
+            // router('auth'); // 실제 앱
+            router('home'); // 개발 중 편의상 홈으로 바로 이동 (테스트용)
         };
     </script>
 </body>
 </html>
-
-
 
