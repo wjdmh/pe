@@ -33,11 +33,10 @@ function toggleLoading(show) {
     if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
 }
 
-// [NEW] 스플래시 스크린 숨김 함수
 function hideSplash() {
     const el = document.getElementById('splash-screen');
     if (el) {
-        el.classList.add('opacity-0', 'pointer-events-none'); // 부드럽게 사라짐
+        el.classList.add('opacity-0', 'pointer-events-none'); 
         setTimeout(() => el.classList.add('hidden'), 500);
     }
 }
@@ -99,10 +98,8 @@ window.switchLockerTab = (tab) => {
     }
 };
 
-// --- Auth & Splash Control ---
 onAuthStateChanged(auth, async (user) => {
     isAuthChecked = true;
-    
     if (user) {
         currentUser = user;
         try {
@@ -110,8 +107,6 @@ onAuthStateChanged(auth, async (user) => {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 myTeamId = userData.teamId;
-                
-                // 로그인 성공 -> 홈으로 이동
                 router('home');
                 loadMatches(); 
                 loadMyTeam();
@@ -123,12 +118,8 @@ onAuthStateChanged(auth, async (user) => {
     } else {
         currentUser = null;
         myTeamId = null;
-        
-        // 비로그인 -> 로그인 화면으로 이동
         router('page-login');
     }
-    
-    // [중요] 인증 체크가 끝나면 스플래시 화면을 없앱니다.
     hideSplash();
 });
 
@@ -184,7 +175,6 @@ async function handleRegisterStep2() {
     } catch (error) { toggleLoading(false); alert("팀 등록 오류: " + error.message); }
 }
 
-// --- Data Logic ---
 function loadMatches() {
     const q = query(collection(db, "matches"), orderBy("createdAt", "desc"));
     onSnapshot(q, (snapshot) => {
@@ -196,6 +186,21 @@ function loadMatches() {
         renderMatches('all'); 
     });
 }
+
+// [중요] 필터링 시 Sticky Hover 문제 해결
+window.filterMatches = (type, btn) => {
+    // 모든 버튼 리셋
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('bg-indigo-600', 'text-white');
+        b.classList.add('bg-white', 'text-slate-500', 'hover:bg-gray-50'); // Hover 클래스 복구
+    });
+    
+    // 선택된 버튼 활성화
+    btn.classList.remove('bg-white', 'text-slate-500', 'hover:bg-gray-50'); // Hover 클래스 제거 (하얀색 변질 방지)
+    btn.classList.add('bg-indigo-600', 'text-white');
+    
+    renderMatches(type);
+};
 
 function renderMatches(filterType) {
     const container = document.getElementById('match-list-container');
@@ -283,39 +288,49 @@ window.deletePost = async (matchId) => {
 };
 
 async function loadMyMatchStatus() {
-    const hostQ = query(collection(db, "matches"), where("teamId", "==", myTeamId), orderBy("createdAt", "desc"));
-    const hostSnap = await getDocs(hostQ);
-    const hostListDiv = document.getElementById('my-hosting-list');
-    hostListDiv.innerHTML = '';
-    if (hostSnap.empty) hostListDiv.innerHTML = '<div class="text-xs text-slate-400">등록한 공고가 없습니다.</div>';
-    hostSnap.forEach(doc => {
-        const m = { id: doc.id, ...doc.data() };
-        let actionHtml = '';
-        if (m.status === 'recruiting') {
-            const applicantCount = m.applicants ? m.applicants.length : 0;
-            if (applicantCount > 0) actionHtml = `<button onclick="showApplicants('${m.id}')" class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-xs font-bold">신청자 ${applicantCount}명 확인</button>`;
-            else actionHtml = `<span class="text-slate-400 text-xs">신청 대기중</span>`;
-        } else if (m.status === 'matched') {
-            if (m.result && m.result.status === 'verified') actionHtml = `<span class="text-green-500 text-xs font-bold">경기 종료 (기록완료)</span>`;
-            else if (m.result && m.result.status === 'waiting') actionHtml = `<span class="text-orange-500 text-xs font-bold">상대 승인 대기중</span>`;
-            else actionHtml = `<button onclick="openResultModal('${m.id}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold">결과 입력</button>`;
-        }
-        hostListDiv.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center"><div onclick="openMatchDetail('${m.id}')"><p class="font-bold text-sm text-slate-700">${m.time}</p><p class="text-xs text-slate-500">${m.loc}</p></div>${actionHtml}</div>`;
-    });
+    try {
+        const hostQ = query(collection(db, "matches"), where("teamId", "==", myTeamId), orderBy("createdAt", "desc"));
+        const hostSnap = await getDocs(hostQ);
+        const hostListDiv = document.getElementById('my-hosting-list');
+        hostListDiv.innerHTML = '';
+        if (hostSnap.empty) hostListDiv.innerHTML = '<div class="text-center py-4 text-xs text-slate-400 border border-dashed border-slate-300 rounded-2xl">등록한 공고가 없습니다.</div>';
+        hostSnap.forEach(doc => {
+            const m = { id: doc.id, ...doc.data() };
+            let actionHtml = '';
+            let statusBadge = '';
+            if (m.status === 'recruiting') {
+                statusBadge = `<span class="bg-indigo-100 text-indigo-600 text-[10px] font-bold px-2 py-1 rounded-full">모집중</span>`;
+                const applicantCount = m.applicants ? m.applicants.length : 0;
+                if (applicantCount > 0) actionHtml = `<button onclick="showApplicants('${m.id}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm hover:bg-indigo-700 transition">신청자 ${applicantCount}명 보기</button>`;
+                else actionHtml = `<span class="text-slate-400 text-xs">신청 대기중</span>`;
+            } else if (m.status === 'matched') {
+                statusBadge = `<span class="bg-green-100 text-green-600 text-[10px] font-bold px-2 py-1 rounded-full">매칭됨</span>`;
+                if (m.result && m.result.status === 'verified') actionHtml = `<span class="text-green-500 text-xs font-bold"><i class="fa-solid fa-check mr-1"></i>기록 완료</span>`;
+                else if (m.result && m.result.status === 'waiting') actionHtml = `<span class="text-orange-500 text-xs font-bold animate-pulse">상대 승인 대기</span>`;
+                else actionHtml = `<button onclick="openResultModal('${m.id}')" class="bg-green-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-sm">결과 입력</button>`;
+            }
+            hostListDiv.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div class="flex justify-between items-center mb-2" onclick="openMatchDetail('${m.id}')"><div><div class="flex items-center space-x-2 mb-1">${statusBadge}<span class="text-xs text-slate-400">${m.time.split(' ')[0]}</span></div><p class="font-bold text-sm text-slate-700">${m.loc}</p></div><i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i></div><div class="pt-3 border-t border-slate-50 flex justify-between items-center">${actionHtml}</div></div>`;
+        });
 
-    const guestQ = query(collection(db, "matches"), where("guestId", "==", myTeamId));
-    const guestSnap = await getDocs(guestQ);
-    const guestListDiv = document.getElementById('my-confirmed-list');
-    guestListDiv.innerHTML = '';
-    if (guestSnap.empty) guestListDiv.innerHTML = '<div class="text-xs text-slate-400">매칭된 경기가 없습니다.</div>';
-    guestSnap.forEach(doc => {
-        const m = { id: doc.id, ...doc.data() };
-        let statusHtml = '';
-        if (m.result && m.result.status === 'waiting') statusHtml = `<button onclick="approveResult('${m.id}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold animate-pulse">결과 승인 요청옴</button>`;
-        else if (m.result && m.result.status === 'verified') statusHtml = `<span class="text-green-500 text-xs font-bold">경기 종료</span>`;
-        else statusHtml = `<span class="text-indigo-500 text-xs font-bold">경기 예정</span>`;
-        guestListDiv.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center"><div onclick="openMatchDetail('${m.id}')"><p class="font-bold text-sm text-slate-700">vs ${m.team}</p><p class="text-xs text-slate-500">${m.time}</p></div>${statusHtml}</div>`;
-    });
+        const guestQ = query(collection(db, "matches"), where("guestId", "==", myTeamId));
+        const guestSnap = await getDocs(guestQ);
+        const guestListDiv = document.getElementById('my-confirmed-list');
+        guestListDiv.innerHTML = '';
+        if (guestSnap.empty) guestListDiv.innerHTML = '<div class="text-center py-4 text-xs text-slate-400 border border-dashed border-slate-300 rounded-2xl">확정된 경기가 없습니다.</div>';
+        guestSnap.forEach(doc => {
+            const m = { id: doc.id, ...doc.data() };
+            let statusHtml = '';
+            if (m.result && m.result.status === 'waiting') statusHtml = `<button onclick="approveResult('${m.id}')" class="w-full bg-blue-500 text-white px-3 py-2 rounded-lg text-xs font-bold animate-pulse mt-2">결과 승인 요청이 왔습니다!</button>`;
+            else if (m.result && m.result.status === 'verified') statusHtml = `<span class="block mt-2 text-green-500 text-xs font-bold text-center">경기 종료</span>`;
+            else statusHtml = `<span class="block mt-2 text-indigo-500 text-xs font-bold text-center">경기 예정</span>`;
+            guestListDiv.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div class="flex justify-between items-center" onclick="openMatchDetail('${m.id}')"><div><span class="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-1 rounded-full mb-1 inline-block">VS</span><p class="font-bold text-sm text-slate-700">${m.team}</p><p class="text-xs text-slate-500">${m.time}</p></div></div>${statusHtml}</div>`;
+        });
+    } catch (error) {
+        if (error.message.includes("requires an index")) {
+            console.error(error); 
+            document.getElementById('my-hosting-list').innerHTML = `<div class="p-4 bg-red-50 text-red-600 text-xs rounded-xl"><strong>⚠️ 설정 필요</strong><br>관리자 콘솔에서 Firestore Index를 생성해야 합니다.<br>(F12 개발자 도구 > Console 탭의 링크 클릭)</div>`;
+        }
+    }
 }
 
 window.showApplicants = async (matchId) => {
@@ -488,13 +503,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('header-logo')?.addEventListener('click', () => router('home'));
     document.getElementById('edit-toggle-btn')?.addEventListener('click', toggleEditMode);
     document.getElementById('btn-add-player')?.addEventListener('click', addPlayer);
-    document.querySelectorAll('.filter-btn').forEach(btn => {
+    
+    // 중복 이벤트 리스너 제거를 위해 onclick 속성 제거하고 JS로만 제어
+    // 필터 버튼
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    filterBtns.forEach(btn => {
+        // 기존 onclick 속성 제거 (HTML에 남아있다면)
+        btn.removeAttribute('onclick');
         btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.filter-btn').forEach(b => { b.classList.remove('bg-indigo-600', 'text-white'); b.classList.add('bg-white', 'text-slate-500'); });
-            e.target.classList.remove('bg-white', 'text-slate-500'); e.target.classList.add('bg-indigo-600', 'text-white');
-            renderMatches(e.target.dataset.filter);
+            window.filterMatches(e.target.dataset.filter, e.target);
         });
     });
+
     const setupOptionBtns = (category) => {
         const btns = document.querySelectorAll(`.write-opt-${category}`);
         btns.forEach(btn => {
