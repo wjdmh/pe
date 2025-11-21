@@ -47,3 +47,14 @@ body {
 .pos-oh { background-color: #dbeafe; color: #1e40af; } 
 .pos-l { background-color: #d1fae5; color: #065f46; } 
 .pos-op { background-color: #f3e8ff; color: #6b21a8; }
+
+/* 모바일 입력창 높이 강제 */
+input[type="text"], 
+input[type="password"], 
+input[type="email"], 
+input[type="number"], 
+input[type="datetime-local"], 
+select {
+    min-height: 54px; /* 모바일 터치 타겟 최적화 */
+    font-size: 16px; /* iOS 확대 방지 */
+}
