@@ -2,7 +2,7 @@
 
 body { 
     font-family: 'Pretendard', sans-serif; 
-    -webkit-tap-highlight-color: transparent; 
+    -webkit-tap-highlight-color: transparent; /* 모바일 터치 시 회색 박스 제거 */
 }
 
 /* 애니메이션 */
@@ -48,13 +48,35 @@ body {
 .pos-l { background-color: #d1fae5; color: #065f46; } 
 .pos-op { background-color: #f3e8ff; color: #6b21a8; }
 
-/* 모바일 입력창 높이 강제 */
+/* [중요] 아이폰(iOS) 입력창 스타일 강제 적용 */
 input[type="text"], 
 input[type="password"], 
 input[type="email"], 
 input[type="number"], 
 input[type="datetime-local"], 
 select {
-    min-height: 54px; /* 모바일 터치 타겟 최적화 */
-    font-size: 16px; /* iOS 확대 방지 */
+    appearance: none;
+    -webkit-appearance: none; /* 사파리 기본 스타일 제거 */
+    border-radius: 12px; 
+    background-color: #ffffff;
+    border: 1px solid #e2e8f0;
+    min-height: 54px; /* 터치 영역 확보 */
+    font-size: 16px; /* 아이폰 확대 방지 */
+    padding: 0 16px; 
+    color: #1e293b;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* 날짜 입력창 배경색 (빈 칸 느낌 방지) */
+input[type="datetime-local"] {
+    background-color: #f8fafc; 
+    color: #334155;
+    position: relative;
+}
+
+/* 랭킹 테이블 스타일 */
+table td {
+    padding-top: 12px;
+    padding-bottom: 12px;
 }
