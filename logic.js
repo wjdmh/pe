@@ -29,6 +29,7 @@ let matchesData = []; // 매칭 데이터 캐시
 let roster = []; // 내 팀 로스터 캐시
 let isEditMode = false;
 let writeState = { type: '9man', gender: 'mixed' }; // 글쓰기 상태
+let isAuthChecked = false; // [중요] Firebase 인증 확인 완료 여부
 
 // [개발용] 가짜 데이터 모음 (승/패 데이터 추가)
 const MOCK_TEAMS_RANKING = [
@@ -59,7 +60,6 @@ const MOCK_ROSTER = [
 ];
 
 // [개발용] 가짜 데이터 사용 여부 스위치
-// *** true로 하면 디자인만 확인 가능, false로 하면 실제 DB 사용 ***
 const USE_MOCK_DATA = false; 
 
 // -----------------------------------------------------------
@@ -72,7 +72,30 @@ function toggleLoading(show) {
     else el.classList.add('hidden');
 }
 
+// [핵심 수정] 라우터 함수에 '문지기(Guard)' 기능 추가
 function router(page) {
+    const targetId = page.startsWith('page-') ? page : `page-${page}`;
+    
+    // 1. 로그인 없이도 갈 수 있는 페이지들 (공용 페이지)
+    const publicPages = ['page-login', 'page-register-email', 'page-team-setup'];
+
+    // 2. 문지기 역할: 인증 확인이 끝났는데, 로그인을 안 했고, 비공개 페이지를 가려고 한다?
+    // -> 로그인 화면으로 강제 이동!
+    if (isAuthChecked && !currentUser && !publicPages.includes(targetId)) {
+        console.warn("🚫 비로그인 접근 차단! 로그인 페이지로 이동합니다.");
+        return router('page-login');
+    }
+
+    // 3. 반대 경우: 이미 로그인 했는데, 로그인/가입 페이지를 가려고 한다?
+    // -> 홈으로 강제 이동! (선택 사항이지만 UX에 좋음)
+    if (isAuthChecked && currentUser && publicPages.includes(targetId)) {
+        // 단, 팀 설정(setup) 페이지는 예외일 수 있음 (가입 직후) - 여기선 단순화
+        if (targetId !== 'page-team-setup') {
+             return router('home');
+        }
+    }
+
+    // --- 실제 페이지 전환 로직 ---
     const pages = ['page-login', 'page-register-email', 'page-team-setup', 'home', 'locker', 'write-post', 'match-detail'];
     
     pages.forEach(p => {
@@ -80,9 +103,10 @@ function router(page) {
         if(el) el.classList.add('hidden');
     });
 
-    const targetId = page.startsWith('page-') ? page : `page-${page}`;
-    document.getElementById(targetId).classList.remove('hidden');
+    const targetEl = document.getElementById(targetId);
+    if(targetEl) targetEl.classList.remove('hidden');
 
+    // 헤더 & 탭바 제어
     const headerActions = document.getElementById('header-actions');
     const tabBar = document.querySelector('nav.glass-nav');
 
@@ -91,6 +115,7 @@ function router(page) {
         tabBar.classList.remove('hidden');
     } else {
         headerActions.classList.add('hidden');
+        // 로그인/가입/글쓰기 화면에선 탭바 숨김
         if(page.includes('login') || page.includes('register') || page.includes('write') || page.includes('detail') || page.includes('setup')) {
             tabBar.classList.add('hidden');
         } else {
@@ -115,6 +140,8 @@ function router(page) {
 // -----------------------------------------------------------
 
 onAuthStateChanged(auth, async (user) => {
+    isAuthChecked = true; // [중요] 인증 확인이 끝났음을 표시
+
     if (user) {
         console.log("로그인 됨:", user.email);
         currentUser = user;
@@ -125,27 +152,28 @@ onAuthStateChanged(auth, async (user) => {
                 const userData = userDoc.data();
                 myTeamId = userData.teamId;
                 
+                // 로그인 상태에서 새로고침 했을 때 홈으로 보내거나, 현재 페이지 유지
+                // 여기서는 간단하게 홈으로 보냄
                 router('home');
                 loadMatches(); 
                 loadMyTeam();
                 loadRankings();
             } else {
-                // 팀 정보가 없는 경우 (가입 1단계만 하고 이탈 등)
                 router('page-team-setup');
             }
         } catch (e) {
             console.error("유저 정보 로드 실패", e);
             alert("사용자 정보를 불러오는 중 오류가 발생했습니다.");
         } finally {
-            // [중요 수정] 로그인 처리가 다 끝나면 로딩을 끕니다.
             toggleLoading(false);
         }
     } else {
         console.log("로그아웃 됨");
         currentUser = null;
         myTeamId = null;
+        
+        // 로그아웃 상태면 무조건 로그인 페이지로
         router('page-login'); 
-        // [중요 수정] 로그아웃 상태 확인 후에도 로딩을 끕니다.
         toggleLoading(false);
     }
 });
@@ -159,9 +187,8 @@ async function handleLogin() {
     toggleLoading(true);
     try {
         await signInWithEmailAndPassword(auth, email, pw);
-        // 성공 시 onAuthStateChanged가 자동으로 작동하므로 여기서 router 호출 안함
     } catch (error) {
-        toggleLoading(false); // 실패 시에는 여기서 꺼줘야 함
+        toggleLoading(false);
         alert("로그인 실패: " + error.message);
     }
 }
@@ -170,8 +197,7 @@ async function handleLogout() {
     if(confirm("로그아웃 하시겠습니까?")) {
         toggleLoading(true);
         await signOut(auth);
-        router('page-login');
-        toggleLoading(false);
+        // router 호출은 onAuthStateChanged에서 처리됨
     }
 }
 
@@ -539,6 +565,7 @@ async function deletePlayerFromDB(id) {
 
 document.addEventListener('DOMContentLoaded', () => {
     
+    // 초기에는 router 호출하지 않음 (onAuthStateChanged가 결정함)
     // 버튼 이벤트 연결
     document.getElementById('btn-login')?.addEventListener('click', handleLogin);
     document.getElementById('btn-go-register')?.addEventListener('click', () => router('page-register-email'));
