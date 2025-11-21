@@ -32,13 +32,13 @@ let writeState = { type: '9man', gender: 'mixed' }; // 글쓰기 상태
 
 // [개발용] 가짜 데이터 모음 (승/패 데이터 추가)
 const MOCK_TEAMS_RANKING = [
-    { name: '한체대 KNSU', wins: 23, losses: 2 }, // 25전, 승률 92%
-    { name: '한신대 비상', wins: 22, losses: 3 }, // 25전, 승률 88%
-    { name: '연세대 배구부', wins: 17, losses: 3 }, // 20전, 승률 85%
-    { name: '서울대학교', wins: 7, losses: 3 },   // 10전, 승률 70%
-    { name: '신생팀 루키', wins: 2, losses: 0 },  // 2전 (랭킹 제외되어야 함)
-    { name: '고려대학교', wins: 6, losses: 4 },   // 10전, 승률 60%
-    { name: '서원대학교', wins: 13, losses: 7 },  // 20전, 승률 65%
+    { name: '한체대 KNSU', wins: 23, losses: 2 },
+    { name: '한신대 비상', wins: 22, losses: 3 },
+    { name: '연세대 배구부', wins: 17, losses: 3 },
+    { name: '서울대학교', wins: 7, losses: 3 },
+    { name: '신생팀 루키', wins: 2, losses: 0 },
+    { name: '고려대학교', wins: 6, losses: 4 },
+    { name: '서원대학교', wins: 13, losses: 7 },
 ];
 
 const MOCK_MATCHES = [
@@ -59,7 +59,8 @@ const MOCK_ROSTER = [
 ];
 
 // [개발용] 가짜 데이터 사용 여부 스위치
-const USE_MOCK_DATA = true; 
+// *** true로 하면 디자인만 확인 가능, false로 하면 실제 DB 사용 ***
+const USE_MOCK_DATA = false; 
 
 // -----------------------------------------------------------
 // UI 제어 함수
@@ -82,7 +83,6 @@ function router(page) {
     const targetId = page.startsWith('page-') ? page : `page-${page}`;
     document.getElementById(targetId).classList.remove('hidden');
 
-    // 헤더 & 탭바 제어
     const headerActions = document.getElementById('header-actions');
     const tabBar = document.querySelector('nav.glass-nav');
 
@@ -128,18 +128,25 @@ onAuthStateChanged(auth, async (user) => {
                 router('home');
                 loadMatches(); 
                 loadMyTeam();
-                loadRankings(); // 랭킹 로드 추가
+                loadRankings();
             } else {
+                // 팀 정보가 없는 경우 (가입 1단계만 하고 이탈 등)
                 router('page-team-setup');
             }
         } catch (e) {
             console.error("유저 정보 로드 실패", e);
+            alert("사용자 정보를 불러오는 중 오류가 발생했습니다.");
+        } finally {
+            // [중요 수정] 로그인 처리가 다 끝나면 로딩을 끕니다.
+            toggleLoading(false);
         }
     } else {
         console.log("로그아웃 됨");
         currentUser = null;
         myTeamId = null;
         router('page-login'); 
+        // [중요 수정] 로그아웃 상태 확인 후에도 로딩을 끕니다.
+        toggleLoading(false);
     }
 });
 
@@ -152,16 +159,19 @@ async function handleLogin() {
     toggleLoading(true);
     try {
         await signInWithEmailAndPassword(auth, email, pw);
+        // 성공 시 onAuthStateChanged가 자동으로 작동하므로 여기서 router 호출 안함
     } catch (error) {
-        toggleLoading(false);
+        toggleLoading(false); // 실패 시에는 여기서 꺼줘야 함
         alert("로그인 실패: " + error.message);
     }
 }
 
 async function handleLogout() {
     if(confirm("로그아웃 하시겠습니까?")) {
+        toggleLoading(true);
         await signOut(auth);
         router('page-login');
+        toggleLoading(false);
     }
 }
 
@@ -216,6 +226,7 @@ async function handleRegisterStep2() {
         router('home');
         loadMyTeam();
         loadMatches();
+        loadRankings();
     } catch (error) {
         toggleLoading(false);
         alert("팀 등록 오류: " + error.message);
@@ -226,7 +237,6 @@ async function handleRegisterStep2() {
 // 데이터 (Data) 로직
 // -----------------------------------------------------------
 
-// 매칭 로드 및 렌더링
 function loadMatches() {
     if (USE_MOCK_DATA) {
         matchesData = MOCK_MATCHES;
@@ -257,7 +267,7 @@ function renderMatches(filterType = 'all') {
     });
 
     if (filtered.length === 0) {
-        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">조건에 맞는 매칭이 없습니다.</div>`;
+        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">등록된 매칭이 없습니다.</div>`;
         return;
     }
 
@@ -366,43 +376,37 @@ async function submitPost() {
     }
 }
 
-// [랭킹] 랭킹 불러오기 및 계산 함수 (신규 추가)
 function loadRankings() {
-    // 렌더링 함수 (내부에서 재사용)
     const renderRankingList = (teams) => {
         const container = document.getElementById('ranking-list');
         container.innerHTML = '';
 
-        // 1. 필터링: 3경기 이상 (승+패 >= 3)
         const eligibleTeams = teams.filter(t => (t.wins + t.losses) >= 3);
 
-        // 2. 승률 계산 및 데이터 가공
         const rankedTeams = eligibleTeams.map(t => {
             const total = t.wins + t.losses;
             const rate = total === 0 ? 0 : (t.wins / total) * 100;
             return { ...t, winRate: rate, totalGames: total };
         });
 
-        // 3. 정렬: 승률(내림차순) -> 승리수(내림차순) -> 경기수(오름차순)
         rankedTeams.sort((a, b) => {
-            if (b.winRate !== a.winRate) return b.winRate - a.winRate; // 승률 우선
-            if (b.wins !== a.wins) return b.wins - a.wins; // 승수 차선
-            return a.totalGames - b.totalGames; // 경기수 적은 순 (효율성)
+            if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+            if (b.wins !== a.wins) return b.wins - a.wins;
+            return a.totalGames - b.totalGames; 
         });
 
-        // 4. 렌더링
         if (rankedTeams.length === 0) {
             container.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-xs text-gray-400">랭킹 산정 기준(3경기)을 충족한 팀이 없습니다.</td></tr>';
             return;
         }
 
         rankedTeams.forEach((t, index) => {
-            let rankColor = 'text-slate-400'; // 기본 순위 색상
+            let rankColor = 'text-slate-400';
             let rankIcon = index + 1;
             
-            if (index === 0) rankColor = 'text-yellow-500'; // 1등 금색
-            else if (index === 1) rankColor = 'text-slate-400'; // 2등 은색
-            else if (index === 2) rankColor = 'text-amber-700'; // 3등 동색
+            if (index === 0) rankColor = 'text-yellow-500';
+            else if (index === 1) rankColor = 'text-slate-400';
+            else if (index === 2) rankColor = 'text-amber-700';
 
             const html = `
                 <tr class="hover:bg-slate-50 transition">
@@ -423,8 +427,7 @@ function loadRankings() {
         return;
     }
 
-    // 실제 데이터 (Firebase)
-    const q = query(collection(db, "teams")); // 모든 팀 가져오기
+    const q = query(collection(db, "teams")); 
     onSnapshot(q, (snapshot) => {
         const teams = [];
         snapshot.forEach((doc) => {
@@ -434,8 +437,6 @@ function loadRankings() {
     });
 }
 
-
-// 팀 정보 로드 및 렌더링
 async function loadMyTeam() {
     if (USE_MOCK_DATA) {
         document.getElementById('my-team-name').innerText = "한신대 비상 (Mock)";
