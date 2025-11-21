@@ -16,7 +16,6 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// --- 상태 관리 ---
 let currentUser = null;
 let myTeamId = null;
 let myTeamData = null;
@@ -29,10 +28,18 @@ let currentMatchIdForModal = null;
 
 const USE_MOCK_DATA = false; 
 
-// --- UI Helper ---
 function toggleLoading(show) {
     const el = document.getElementById('loading-overlay');
     if(show) el.classList.remove('hidden'); else el.classList.add('hidden');
+}
+
+// [NEW] 스플래시 스크린 숨김 함수
+function hideSplash() {
+    const el = document.getElementById('splash-screen');
+    if (el) {
+        el.classList.add('opacity-0', 'pointer-events-none'); // 부드럽게 사라짐
+        setTimeout(() => el.classList.add('hidden'), 500);
+    }
 }
 
 window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
@@ -92,9 +99,10 @@ window.switchLockerTab = (tab) => {
     }
 };
 
-// --- Auth ---
+// --- Auth & Splash Control ---
 onAuthStateChanged(auth, async (user) => {
     isAuthChecked = true;
+    
     if (user) {
         currentUser = user;
         try {
@@ -102,6 +110,8 @@ onAuthStateChanged(auth, async (user) => {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 myTeamId = userData.teamId;
+                
+                // 로그인 성공 -> 홈으로 이동
                 router('home');
                 loadMatches(); 
                 loadMyTeam();
@@ -109,85 +119,61 @@ onAuthStateChanged(auth, async (user) => {
             } else {
                 router('page-team-setup');
             }
-        } catch (e) { alert("오류 발생"); } finally { toggleLoading(false); }
+        } catch (e) { alert("오류 발생"); }
     } else {
         currentUser = null;
         myTeamId = null;
+        
+        // 비로그인 -> 로그인 화면으로 이동
         router('page-login');
-        toggleLoading(false);
     }
+    
+    // [중요] 인증 체크가 끝나면 스플래시 화면을 없앱니다.
+    hideSplash();
 });
 
 async function handleLogin() {
     const email = document.getElementById('login-email').value;
     const pw = document.getElementById('login-password').value;
-    
     if(!email || !pw) return alert("이메일과 비밀번호를 입력해주세요.");
-    
     toggleLoading(true);
-    try {
-        await signInWithEmailAndPassword(auth, email, pw);
-    } catch (error) {
-        toggleLoading(false);
-        alert("로그인 실패: " + error.message);
-    }
+    try { await signInWithEmailAndPassword(auth, email, pw); } 
+    catch (error) { toggleLoading(false); alert("로그인 실패: " + error.message); }
 }
 
 async function handleLogout() {
     if(confirm("로그아웃 하시겠습니까?")) {
         toggleLoading(true);
         await signOut(auth);
+        toggleLoading(false);
     }
 }
 
 async function handleRegisterStep1() {
     const email = document.getElementById('reg-email').value;
     const pw = document.getElementById('reg-password').value;
-
     if(!email.includes('@')) return alert("올바른 이메일을 입력해주세요.");
     if(pw.length < 6) return alert("비밀번호는 6자리 이상이어야 합니다.");
-
     toggleLoading(true);
     try {
         await createUserWithEmailAndPassword(auth, email, pw);
         toggleLoading(false);
         router('page-team-setup');
-    } catch (error) {
-        toggleLoading(false);
-        alert("가입 실패: " + error.message);
-    }
+    } catch (error) { toggleLoading(false); alert("가입 실패: " + error.message); }
 }
 
-// [중요] 회원가입 시 카톡 ID 저장 로직 추가
 async function handleRegisterStep2() {
     const teamName = document.getElementById('team-name').value;
     const nickname = document.getElementById('team-nickname').value;
     const level = document.getElementById('team-level').value;
-    const kakaoId = document.getElementById('team-kakao').value; // 카톡 ID 가져오기
+    const kakaoId = document.getElementById('team-kakao').value;
     const user = auth.currentUser;
-
     if(!teamName || !nickname || !kakaoId) return alert("모든 정보를 입력해주세요.");
-
     toggleLoading(true);
     try {
         const newTeamRef = doc(collection(db, "teams")); 
-        await setDoc(newTeamRef, {
-            name: teamName,
-            level: level,
-            captainId: user.uid,
-            wins: 0,
-            losses: 0,
-            roster: [] 
-        });
-
-        await setDoc(doc(db, "users", user.uid), {
-            email: user.email,
-            nickname: nickname,
-            teamId: newTeamRef.id,
-            role: 'Captain',
-            kakaoId: kakaoId // 유저 정보에 연락처 저장
-        });
-
+        await setDoc(newTeamRef, { name: teamName, level: level, captainId: user.uid, wins: 0, losses: 0, roster: [] });
+        await setDoc(doc(db, "users", user.uid), { email: user.email, nickname: nickname, teamId: newTeamRef.id, role: 'Captain', kakaoId: kakaoId });
         toggleLoading(false);
         alert("팀 등록이 완료되었습니다!");
         myTeamId = newTeamRef.id;
@@ -195,29 +181,17 @@ async function handleRegisterStep2() {
         loadMyTeam();
         loadMatches();
         loadRankings();
-    } catch (error) {
-        toggleLoading(false);
-        alert("팀 등록 오류: " + error.message);
-    }
+    } catch (error) { toggleLoading(false); alert("팀 등록 오류: " + error.message); }
 }
 
 // --- Data Logic ---
-
-// [수정] 매칭 로드 방식 변경 (색인 에러 방지)
-// 기존: where("status", "==", "recruiting") 사용 -> 색인 필요 -> 에러 발생 가능성 높음
-// 변경: orderBy("createdAt") 만 사용 -> 데이터 다 가져온 뒤 JS에서 필터링
 function loadMatches() {
-    // 쿼리 단순화: 최신순 정렬만 수행
     const q = query(collection(db, "matches"), orderBy("createdAt", "desc"));
-    
     onSnapshot(q, (snapshot) => {
         matchesData = [];
         snapshot.forEach((doc) => {
             const data = doc.data();
-            // JS에서 '모집 중(recruiting)'인 것만 필터링해서 담기
-            if (data.status === 'recruiting') {
-                matchesData.push({ id: doc.id, ...data });
-            }
+            if (data.status === 'recruiting') matchesData.push({ id: doc.id, ...data });
         });
         renderMatches('all'); 
     });
@@ -227,18 +201,15 @@ function renderMatches(filterType) {
     const container = document.getElementById('match-list-container');
     container.innerHTML = ''; 
     const filtered = matchesData.filter(m => filterType === 'all' || m.type === filterType || m.gender === filterType);
-
     if (filtered.length === 0) {
         container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">현재 모집 중인 매칭이 없습니다.</div>`;
         return;
     }
-
     filtered.forEach(m => {
         const genderLabel = m.gender === 'male' ? '남자' : (m.gender === 'female' ? '여자' : '혼성');
         const typeLabel = m.type === '9man' ? '9인제' : '6인제';
         const badgeColor = m.badgeColor || 'bg-indigo-100 text-indigo-600';
         const badge = m.badge || '모집중';
-        
         const div = document.createElement('div');
         div.className = "bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition active:scale-[0.98] cursor-pointer";
         div.innerHTML = `
@@ -253,8 +224,7 @@ function renderMatches(filterType) {
             <div class="flex items-center text-xs text-slate-500 mt-2 space-x-3">
                 <span><i class="fa-regular fa-clock mr-1"></i> ${m.time}</span>
                 <span><i class="fa-solid fa-location-dot mr-1"></i> ${m.loc}</span>
-            </div>
-        `;
+            </div>`;
         div.onclick = () => openMatchDetail(m.id);
         container.appendChild(div);
     });
@@ -267,43 +237,28 @@ window.openMatchDetail = async (id) => {
         if (docSnap.exists()) m = { id: docSnap.id, ...docSnap.data() };
     }
     if(!m) return alert("존재하지 않는 매칭입니다.");
-
     document.getElementById('detail-title').innerText = m.team;
     document.getElementById('detail-time').innerText = m.time;
     document.getElementById('detail-location-header').innerHTML = `<i class="fa-solid fa-location-dot mr-1"></i> ${m.loc}`;
     document.getElementById('detail-remark').innerText = m.remark;
     document.getElementById('detail-badge-type').innerText = m.type === '9man' ? '9인제' : '6인제';
     document.getElementById('detail-badge-gender').innerText = m.gender === 'male' ? '남자' : (m.gender === 'female' ? '여자' : '혼성');
-
-    // 연락처 표시 로직
     const contactSection = document.getElementById('detail-contact-section');
     if (m.status === 'matched' && (m.teamId === myTeamId || m.guestId === myTeamId)) {
         contactSection.classList.remove('hidden');
         const contactToShow = m.teamId === myTeamId ? m.guestContact : m.hostContact;
         document.getElementById('detail-contact-id').innerText = contactToShow || "정보 없음";
-    } else {
-        contactSection.classList.add('hidden');
-    }
-
+    } else { contactSection.classList.add('hidden'); }
     const actionsDiv = document.getElementById('detail-actions');
     actionsDiv.innerHTML = '';
-
     if (m.teamId === myTeamId) {
-        if (m.status === 'recruiting') {
-            actionsDiv.innerHTML = `<button onclick="deletePost('${m.id}')" class="w-full bg-red-100 text-red-600 font-bold py-4 rounded-2xl">공고 삭제하기</button>`;
-        } else if (m.status === 'matched') {
-            actionsDiv.innerHTML = `<button class="w-full bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl" disabled>매칭 완료됨</button>`;
-        }
+        if (m.status === 'recruiting') actionsDiv.innerHTML = `<button onclick="deletePost('${m.id}')" class="w-full bg-red-100 text-red-600 font-bold py-4 rounded-2xl">공고 삭제하기</button>`;
+        else if (m.status === 'matched') actionsDiv.innerHTML = `<button class="w-full bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl" disabled>매칭 완료됨</button>`;
     } else {
-        if (m.applicants && m.applicants.includes(myTeamId)) {
-            actionsDiv.innerHTML = `<button class="w-full bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl" disabled>신청 완료 (대기중)</button>`;
-        } else if (m.status === 'matched') {
-            actionsDiv.innerHTML = `<button class="w-full bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl" disabled>이미 마감된 경기</button>`;
-        } else {
-            actionsDiv.innerHTML = `<button onclick="applyMatch('${m.id}')" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg">매칭 지원하기</button>`;
-        }
+        if (m.applicants && m.applicants.includes(myTeamId)) actionsDiv.innerHTML = `<button class="w-full bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl" disabled>신청 완료 (대기중)</button>`;
+        else if (m.status === 'matched') actionsDiv.innerHTML = `<button class="w-full bg-gray-200 text-gray-500 font-bold py-4 rounded-2xl" disabled>이미 마감된 경기</button>`;
+        else actionsDiv.innerHTML = `<button onclick="applyMatch('${m.id}')" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg">매칭 지원하기</button>`;
     }
-
     router('match-detail');
 };
 
@@ -314,15 +269,10 @@ window.applyMatch = async (matchId) => {
         const matchRef = doc(db, "matches", matchId);
         const matchSnap = await getDoc(matchRef);
         const currentApplicants = matchSnap.data().applicants || [];
-        
-        await updateDoc(matchRef, {
-            applicants: [...currentApplicants, myTeamId]
-        });
+        await updateDoc(matchRef, { applicants: [...currentApplicants, myTeamId] });
         alert("신청되었습니다! 호스트가 수락하면 알림이 옵니다.");
         router('home');
-    } catch (e) {
-        alert("신청 실패: " + e.message);
-    } finally { toggleLoading(false); }
+    } catch (e) { alert("신청 실패: " + e.message); } finally { toggleLoading(false); }
 };
 
 window.deletePost = async (matchId) => {
@@ -334,69 +284,37 @@ window.deletePost = async (matchId) => {
 
 async function loadMyMatchStatus() {
     const hostQ = query(collection(db, "matches"), where("teamId", "==", myTeamId), orderBy("createdAt", "desc"));
-    
     const hostSnap = await getDocs(hostQ);
     const hostListDiv = document.getElementById('my-hosting-list');
     hostListDiv.innerHTML = '';
-
     if (hostSnap.empty) hostListDiv.innerHTML = '<div class="text-xs text-slate-400">등록한 공고가 없습니다.</div>';
-
     hostSnap.forEach(doc => {
         const m = { id: doc.id, ...doc.data() };
         let actionHtml = '';
         if (m.status === 'recruiting') {
             const applicantCount = m.applicants ? m.applicants.length : 0;
-            if (applicantCount > 0) {
-                actionHtml = `<button onclick="showApplicants('${m.id}')" class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-xs font-bold">신청자 ${applicantCount}명 확인</button>`;
-            } else {
-                actionHtml = `<span class="text-slate-400 text-xs">신청 대기중</span>`;
-            }
+            if (applicantCount > 0) actionHtml = `<button onclick="showApplicants('${m.id}')" class="bg-indigo-100 text-indigo-600 px-3 py-1 rounded-lg text-xs font-bold">신청자 ${applicantCount}명 확인</button>`;
+            else actionHtml = `<span class="text-slate-400 text-xs">신청 대기중</span>`;
         } else if (m.status === 'matched') {
-            if (m.result && m.result.status === 'verified') {
-                actionHtml = `<span class="text-green-500 text-xs font-bold">경기 종료 (기록완료)</span>`;
-            } else if (m.result && m.result.status === 'waiting') {
-                actionHtml = `<span class="text-orange-500 text-xs font-bold">상대 승인 대기중</span>`;
-            } else {
-                actionHtml = `<button onclick="openResultModal('${m.id}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold">결과 입력</button>`;
-            }
+            if (m.result && m.result.status === 'verified') actionHtml = `<span class="text-green-500 text-xs font-bold">경기 종료 (기록완료)</span>`;
+            else if (m.result && m.result.status === 'waiting') actionHtml = `<span class="text-orange-500 text-xs font-bold">상대 승인 대기중</span>`;
+            else actionHtml = `<button onclick="openResultModal('${m.id}')" class="bg-green-500 text-white px-3 py-1 rounded-lg text-xs font-bold">결과 입력</button>`;
         }
-        const html = `
-            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
-                <div onclick="openMatchDetail('${m.id}')">
-                    <p class="font-bold text-sm text-slate-700">${m.time}</p>
-                    <p class="text-xs text-slate-500">${m.loc}</p>
-                </div>
-                ${actionHtml}
-            </div>`;
-        hostListDiv.innerHTML += html;
+        hostListDiv.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center"><div onclick="openMatchDetail('${m.id}')"><p class="font-bold text-sm text-slate-700">${m.time}</p><p class="text-xs text-slate-500">${m.loc}</p></div>${actionHtml}</div>`;
     });
 
     const guestQ = query(collection(db, "matches"), where("guestId", "==", myTeamId));
     const guestSnap = await getDocs(guestQ);
     const guestListDiv = document.getElementById('my-confirmed-list');
     guestListDiv.innerHTML = '';
-
     if (guestSnap.empty) guestListDiv.innerHTML = '<div class="text-xs text-slate-400">매칭된 경기가 없습니다.</div>';
-
     guestSnap.forEach(doc => {
         const m = { id: doc.id, ...doc.data() };
         let statusHtml = '';
-        if (m.result && m.result.status === 'waiting') {
-            statusHtml = `<button onclick="approveResult('${m.id}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold animate-pulse">결과 승인 요청옴</button>`;
-        } else if (m.result && m.result.status === 'verified') {
-            statusHtml = `<span class="text-green-500 text-xs font-bold">경기 종료</span>`;
-        } else {
-            statusHtml = `<span class="text-indigo-500 text-xs font-bold">경기 예정</span>`;
-        }
-        const html = `
-            <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center">
-                <div onclick="openMatchDetail('${m.id}')">
-                    <p class="font-bold text-sm text-slate-700">vs ${m.team}</p>
-                    <p class="text-xs text-slate-500">${m.time}</p>
-                </div>
-                ${statusHtml}
-            </div>`;
-        guestListDiv.innerHTML += html;
+        if (m.result && m.result.status === 'waiting') statusHtml = `<button onclick="approveResult('${m.id}')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold animate-pulse">결과 승인 요청옴</button>`;
+        else if (m.result && m.result.status === 'verified') statusHtml = `<span class="text-green-500 text-xs font-bold">경기 종료</span>`;
+        else statusHtml = `<span class="text-indigo-500 text-xs font-bold">경기 예정</span>`;
+        guestListDiv.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex justify-between items-center"><div onclick="openMatchDetail('${m.id}')"><p class="font-bold text-sm text-slate-700">vs ${m.team}</p><p class="text-xs text-slate-500">${m.time}</p></div>${statusHtml}</div>`;
     });
 }
 
@@ -406,56 +324,33 @@ window.showApplicants = async (matchId) => {
     const applicants = m.applicants || [];
     const listDiv = document.getElementById('applicant-list');
     listDiv.innerHTML = '';
-
     for (const teamId of applicants) {
         const teamSnap = await getDoc(doc(db, "teams", teamId));
         const team = teamSnap.data();
         const div = document.createElement('div');
         div.className = "flex justify-between items-center bg-slate-50 p-3 rounded-xl";
-        div.innerHTML = `
-            <div>
-                <p class="font-bold text-sm text-slate-700">${team.name}</p>
-                <p class="text-xs text-slate-500">등급: ${team.level}</p>
-            </div>
-            <button onclick="acceptApplicant('${matchId}', '${teamId}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs font-bold">수락</button>
-        `;
+        div.innerHTML = `<div><p class="font-bold text-sm text-slate-700">${team.name}</p><p class="text-xs text-slate-500">등급: ${team.level}</p></div><button onclick="acceptApplicant('${matchId}', '${teamId}')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs font-bold">수락</button>`;
         listDiv.appendChild(div);
     }
     window.openModal('modal-applicants');
 };
 
-// [중요] 매칭 수락 시 연락처 교환 로직 포함
 window.acceptApplicant = async (matchId, guestTeamId) => {
     if(!confirm("이 팀과 매칭을 확정하시겠습니까?")) return;
     toggleLoading(true);
-    
     try {
-        // 1. 게스트(신청자)의 카톡 ID 조회 (users 컬렉션에서 팀ID로 조회)
         const guestUserQ = query(collection(db, "users"), where("teamId", "==", guestTeamId), where("role", "==", "Captain"));
         const guestUserSnap = await getDocs(guestUserQ);
         let guestContact = "연락처 미등록";
-        if (!guestUserSnap.empty) {
-            guestContact = guestUserSnap.docs[0].data().kakaoId;
-        }
-
-        // 2. 호스트(나)의 카톡 ID 조회
+        if (!guestUserSnap.empty) guestContact = guestUserSnap.docs[0].data().kakaoId;
         const hostUserDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
         const hostContact = hostUserDoc.data().kakaoId || "연락처 미등록";
-        
-        // 3. 매칭 정보 업데이트 (연락처 서로 교환 저장)
-        await updateDoc(doc(db, "matches", matchId), {
-            status: 'matched',
-            guestId: guestTeamId,
-            hostContact: hostContact, 
-            guestContact: guestContact 
-        });
-        
+        await updateDoc(doc(db, "matches", matchId), { status: 'matched', guestId: guestTeamId, hostContact: hostContact, guestContact: guestContact });
         alert("매칭이 확정되었습니다! 라커룸 또는 매칭 상세에서 상대방 연락처를 확인하세요.");
         window.closeModal();
         loadMyMatchStatus();
-        router('home'); // 리스트에서 사라지는 것 확인을 위해 홈으로 이동
-    } catch(e) { alert("수락 실패: " + e.message); }
-    finally { toggleLoading(false); }
+        router('home');
+    } catch(e) { alert("수락 실패: " + e.message); } finally { toggleLoading(false); }
 };
 
 window.openResultModal = (matchId) => {
@@ -467,21 +362,13 @@ window.submitGameResult = async () => {
     const homeScore = document.getElementById('score-home').value;
     const awayScore = document.getElementById('score-away').value;
     if(!homeScore || !awayScore) return alert("점수를 입력하세요.");
-    
     toggleLoading(true);
     try {
-        await updateDoc(doc(db, "matches", currentMatchIdForModal), {
-            result: {
-                homeScore: parseInt(homeScore),
-                awayScore: parseInt(awayScore),
-                status: 'waiting'
-            }
-        });
+        await updateDoc(doc(db, "matches", currentMatchIdForModal), { result: { homeScore: parseInt(homeScore), awayScore: parseInt(awayScore), status: 'waiting' } });
         alert("상대 팀에게 승인 요청을 보냈습니다.");
         window.closeModal();
         loadMyMatchStatus();
-    } catch(e) { alert("전송 실패: " + e.message); }
-    finally { toggleLoading(false); }
+    } catch(e) { alert("전송 실패: " + e.message); } finally { toggleLoading(false); }
 };
 
 window.approveResult = async (matchId) => {
@@ -493,32 +380,18 @@ window.approveResult = async (matchId) => {
         const result = m.result;
         let hostWin = result.homeScore > result.awayScore;
         let draw = result.homeScore == result.awayScore;
-        
         const hostTeamRef = doc(db, "teams", m.teamId);
         const hostTeamSnap = await getDoc(hostTeamRef);
         const hData = hostTeamSnap.data();
-        await updateDoc(hostTeamRef, {
-            wins: hData.wins + (hostWin ? 1 : 0),
-            losses: hData.losses + (!hostWin && !draw ? 1 : 0)
-        });
-
+        await updateDoc(hostTeamRef, { wins: hData.wins + (hostWin ? 1 : 0), losses: hData.losses + (!hostWin && !draw ? 1 : 0) });
         const guestTeamRef = doc(db, "teams", myTeamId);
         const gData = (await getDoc(guestTeamRef)).data();
-        await updateDoc(guestTeamRef, {
-            wins: gData.wins + (!hostWin && !draw ? 1 : 0),
-            losses: gData.losses + (hostWin ? 1 : 0)
-        });
-
-        await updateDoc(doc(db, "matches", matchId), {
-            "result.status": 'verified',
-            status: 'finished'
-        });
-
+        await updateDoc(guestTeamRef, { wins: gData.wins + (!hostWin && !draw ? 1 : 0), losses: gData.losses + (hostWin ? 1 : 0) });
+        await updateDoc(doc(db, "matches", matchId), { "result.status": 'verified', status: 'finished' });
         alert("결과가 승인되고 전적이 반영되었습니다!");
         loadMyMatchStatus();
         loadRankings();
-    } catch(e) { alert("승인 실패: " + e.message); }
-    finally { toggleLoading(false); }
+    } catch(e) { alert("승인 실패: " + e.message); } finally { toggleLoading(false); }
 };
 
 window.openTeamDetail = async (teamId) => {
@@ -529,7 +402,6 @@ window.openTeamDetail = async (teamId) => {
     document.getElementById('modal-team-wins').innerText = t.wins;
     const rate = (t.wins + t.losses) === 0 ? 0 : (t.wins / (t.wins + t.losses)) * 100;
     document.getElementById('modal-team-rate').innerText = rate.toFixed(0) + '%';
-    
     const rosterDiv = document.getElementById('modal-team-roster');
     rosterDiv.innerHTML = '';
     if(t.roster) {
@@ -562,42 +434,22 @@ window.submitPost = async () => {
     const note = document.getElementById('write-note').value;
     const type = writeState.type; 
     const gender = writeState.gender;
-
     if(!loc || !timeInput) return alert('장소와 시간을 입력해주세요.');
-
     const dateObj = new Date(timeInput);
     const formattedTime = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
-
     toggleLoading(true);
     try {
-        await addDoc(collection(db, "matches"), {
-            team: myTeamData.name,
-            teamId: myTeamId,
-            type: type,
-            gender: gender,
-            time: formattedTime,
-            loc: loc,
-            remark: note || '특이사항 없음',
-            badge: '모집중',
-            badgeColor: 'bg-indigo-100 text-indigo-600',
-            status: 'recruiting', 
-            applicants: [],
-            createdAt: new Date().toISOString()
-        });
+        await addDoc(collection(db, "matches"), { team: myTeamData.name, teamId: myTeamId, type: type, gender: gender, time: formattedTime, loc: loc, remark: note || '특이사항 없음', badge: '모집중', badgeColor: 'bg-indigo-100 text-indigo-600', status: 'recruiting', applicants: [], createdAt: new Date().toISOString() });
         alert('매칭 공고가 등록되었습니다!');
         router('home');
-    } catch (error) { alert("등록 실패"); } 
-    finally { toggleLoading(false); }
+    } catch (error) { alert("등록 실패"); } finally { toggleLoading(false); }
 };
 
 function loadRankings() {
     const q = query(collection(db, "teams")); 
     onSnapshot(q, (snapshot) => {
         const teams = [];
-        snapshot.forEach((doc) => {
-            teams.push({ id: doc.id, ...doc.data() });
-        });
-        
+        snapshot.forEach((doc) => teams.push({ id: doc.id, ...doc.data() }));
         const container = document.getElementById('ranking-list');
         container.innerHTML = '';
         const eligibleTeams = teams.filter(t => (t.wins + t.losses) >= 3);
@@ -611,29 +463,15 @@ function loadRankings() {
             if (b.wins !== a.wins) return b.wins - a.wins;
             return a.totalGames - b.totalGames; 
         });
-
         rankedTeams.forEach((t, index) => {
             let rankColor = 'text-slate-400';
             let rankIcon = index + 1;
-            if (index === 0) rankColor = 'text-yellow-500';
-            else if (index === 1) rankColor = 'text-slate-400';
-            else if (index === 2) rankColor = 'text-amber-700';
-
-            const html = `
-                <tr onclick="openTeamDetail('${t.id}')" class="hover:bg-slate-50 transition cursor-pointer">
-                    <td class="p-3 font-bold ${rankColor} w-8 text-center text-lg italic">${rankIcon}</td>
-                    <td class="font-bold text-slate-700 text-sm">
-                        ${t.name}
-                        <span class="text-[10px] font-normal text-gray-400 ml-1">(${t.wins}승 ${t.losses}패)</span>
-                    </td>
-                    <td class="text-right p-3 font-bold text-indigo-600 text-sm">${t.winRate.toFixed(0)}%</td>
-                </tr>`;
-            container.innerHTML += html;
+            if (index === 0) rankColor = 'text-yellow-500'; else if (index === 1) rankColor = 'text-slate-400'; else if (index === 2) rankColor = 'text-amber-700';
+            container.innerHTML += `<tr onclick="openTeamDetail('${t.id}')" class="hover:bg-slate-50 transition cursor-pointer"><td class="p-3 font-bold ${rankColor} w-8 text-center text-lg italic">${rankIcon}</td><td class="font-bold text-slate-700 text-sm">${t.name}<span class="text-[10px] font-normal text-gray-400 ml-1">(${t.wins}승 ${t.losses}패)</span></td><td class="text-right p-3 font-bold text-indigo-600 text-sm">${t.winRate.toFixed(0)}%</td></tr>`;
         });
     });
 }
 
-// --- 이벤트 리스너 ---
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-login')?.addEventListener('click', handleLogin);
     document.getElementById('btn-go-register')?.addEventListener('click', () => router('page-register-email'));
@@ -644,18 +482,12 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-submit-post')?.addEventListener('click', submitPost);
     document.getElementById('btn-back-home')?.addEventListener('click', () => router('home'));
     document.getElementById('btn-detail-back')?.addEventListener('click', () => router('home'));
-    document.getElementById('btn-send-challenge')?.addEventListener('click', () => {
-        // 이 버튼은 상세화면 진입 시 로직에 따라 동적으로 생성/변경되므로 여기서는 기본 동작만
-    });
-
     document.getElementById('nav-home')?.addEventListener('click', () => router('home'));
     document.getElementById('nav-locker')?.addEventListener('click', () => router('locker'));
     document.getElementById('nav-logout')?.addEventListener('click', handleLogout);
     document.getElementById('header-logo')?.addEventListener('click', () => router('home'));
-
     document.getElementById('edit-toggle-btn')?.addEventListener('click', toggleEditMode);
     document.getElementById('btn-add-player')?.addEventListener('click', addPlayer);
-
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.filter-btn').forEach(b => { b.classList.remove('bg-indigo-600', 'text-white'); b.classList.add('bg-white', 'text-slate-500'); });
@@ -663,7 +495,6 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMatches(e.target.dataset.filter);
         });
     });
-
     const setupOptionBtns = (category) => {
         const btns = document.querySelectorAll(`.write-opt-${category}`);
         btns.forEach(btn => {
@@ -690,12 +521,7 @@ function renderRoster() {
         let deleteBtn = isEditMode ? `<button onclick="event.stopPropagation(); deletePlayerFromDB(${p.id})" class="text-red-500 ml-3 text-sm w-8 h-8 flex items-center justify-center bg-red-50 rounded-full"><i class="fa-solid fa-minus"></i></button>` : '';
         const roleBadge = p.role === 'Captain' ? '<i class="fa-solid fa-crown text-yellow-500 ml-1 text-xs"></i>' : '';
         let posColorClass = p.pos === 'MB' ? 'bg-red-100 text-red-800' : (p.pos === 'S' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-800'); 
-        container.innerHTML += `
-            <div class="flex items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm">
-                <div class="w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${posColorClass}">${p.pos}</div>
-                <div class="ml-3 flex-1"><p class="text-sm font-bold text-slate-800">${p.name} ${roleBadge}</p></div>
-                ${deleteBtn}
-            </div>`;
+        container.innerHTML += `<div class="flex items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm"><div class="w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${posColorClass}">${p.pos}</div><div class="ml-3 flex-1"><p class="text-sm font-bold text-slate-800">${p.name} ${roleBadge}</p></div>${deleteBtn}</div>`;
     });
 }
 function toggleEditMode() {
