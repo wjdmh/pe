@@ -30,6 +30,37 @@ let roster = []; // 내 팀 로스터 캐시
 let isEditMode = false;
 let writeState = { type: '9man', gender: 'mixed' }; // 글쓰기 상태
 
+// [개발용] 가짜 데이터 모음 (승/패 데이터 추가)
+const MOCK_TEAMS_RANKING = [
+    { name: '한체대 KNSU', wins: 23, losses: 2 }, // 25전, 승률 92%
+    { name: '한신대 비상', wins: 22, losses: 3 }, // 25전, 승률 88%
+    { name: '연세대 배구부', wins: 17, losses: 3 }, // 20전, 승률 85%
+    { name: '서울대학교', wins: 7, losses: 3 },   // 10전, 승률 70%
+    { name: '신생팀 루키', wins: 2, losses: 0 },  // 2전 (랭킹 제외되어야 함)
+    { name: '고려대학교', wins: 6, losses: 4 },   // 10전, 승률 60%
+    { name: '서원대학교', wins: 13, losses: 7 },  // 20전, 승률 65%
+];
+
+const MOCK_MATCHES = [
+    { id: 1, team: '한신대 비상', type: '9man', gender: 'mixed', time: '11/24 18:00', loc: '한신대 체육관', remark: '주차 협소', badge: '모집중', badgeColor: 'bg-indigo-100 text-indigo-600' },
+    { id: 2, team: '고려대 KUVC', type: '6man', gender: 'male', time: '11/26 14:00', loc: '고려대 화정체육관', remark: '선수출신 1명 포함', badge: '원정', badgeColor: 'bg-slate-100 text-slate-600' },
+    { id: 3, team: '이화여대 EAVC', type: '6man', gender: 'female', time: '11/27 19:00', loc: '이대 체육관', remark: '친선 경기 환영', badge: '모집중', badgeColor: 'bg-indigo-100 text-indigo-600' },
+    { id: 4, team: '연세대 배구부', type: '9man', gender: 'male', time: '11/25 10:00', loc: '연세대 신촌캠퍼스', remark: '물 제공', badge: '마감임박', badgeColor: 'bg-red-100 text-red-600' },
+    { id: 5, team: '서울시립대', type: '6man', gender: 'mixed', time: '11/28 18:00', loc: '시립대 웰니스센터', remark: '회식 가능', badge: '친선', badgeColor: 'bg-green-100 text-green-600' }
+];
+
+const MOCK_ROSTER = [
+    { id: 1, name: '정무현', pos: 'MB', role: 'Captain' },
+    { id: 2, name: '이강민', pos: 'MB', role: '' },
+    { id: 3, name: '윤재혁', pos: 'S', role: '' },
+    { id: 4, name: '이준우', pos: 'OH', role: '' },
+    { id: 5, name: '임기주', pos: 'S', role: '' },
+    { id: 6, name: '김석환', pos: 'L', role: '' }
+];
+
+// [개발용] 가짜 데이터 사용 여부 스위치
+const USE_MOCK_DATA = true; 
+
 // -----------------------------------------------------------
 // UI 제어 함수
 // -----------------------------------------------------------
@@ -53,14 +84,13 @@ function router(page) {
 
     // 헤더 & 탭바 제어
     const headerActions = document.getElementById('header-actions');
-    const tabBar = document.querySelector('nav.glass-nav'); // 탭바 선택자 수정
+    const tabBar = document.querySelector('nav.glass-nav');
 
     if(page === 'home' || page === 'locker') {
         headerActions.classList.remove('hidden');
         tabBar.classList.remove('hidden');
     } else {
         headerActions.classList.add('hidden');
-        // 로그인/가입/글쓰기 화면에선 탭바 숨김
         if(page.includes('login') || page.includes('register') || page.includes('write') || page.includes('detail') || page.includes('setup')) {
             tabBar.classList.add('hidden');
         } else {
@@ -68,7 +98,6 @@ function router(page) {
         }
     }
 
-    // 탭 활성화 UI
     const updateTab = (id, active) => {
         const el = document.getElementById(id);
         if(!el) return;
@@ -98,7 +127,8 @@ onAuthStateChanged(auth, async (user) => {
                 
                 router('home');
                 loadMatches(); 
-                loadMyTeam();  
+                loadMyTeam();
+                loadRankings(); // 랭킹 로드 추가
             } else {
                 router('page-team-setup');
             }
@@ -198,6 +228,12 @@ async function handleRegisterStep2() {
 
 // 매칭 로드 및 렌더링
 function loadMatches() {
+    if (USE_MOCK_DATA) {
+        matchesData = MOCK_MATCHES;
+        renderMatches('all');
+        return;
+    }
+
     const q = query(collection(db, "matches"), orderBy("createdAt", "desc"));
     onSnapshot(q, (snapshot) => {
         matchesData = [];
@@ -266,7 +302,6 @@ function openMatchDetail(id) {
     router('match-detail');
 }
 
-// 매칭 공고 등록
 async function submitPost() {
     const loc = document.getElementById('write-location').value;
     const timeInput = document.getElementById('write-time').value;
@@ -279,6 +314,25 @@ async function submitPost() {
 
     const dateObj = new Date(timeInput);
     const formattedTime = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${dateObj.getHours().toString().padStart(2, '0')}:${dateObj.getMinutes().toString().padStart(2, '0')}`;
+
+    if (USE_MOCK_DATA) {
+        const newMatch = {
+            id: Date.now(),
+            team: '한신대 비상 (Mock)',
+            type: type,
+            gender: gender,
+            time: formattedTime,
+            loc: loc,
+            remark: note || '특이사항 없음',
+            badge: '모집중',
+            badgeColor: 'bg-indigo-100 text-indigo-600'
+        };
+        matchesData.unshift(newMatch);
+        renderMatches('all');
+        alert('매칭 공고가 등록되었습니다! (가짜 데이터)');
+        router('home');
+        return;
+    }
 
     toggleLoading(true);
     try {
@@ -312,8 +366,85 @@ async function submitPost() {
     }
 }
 
+// [랭킹] 랭킹 불러오기 및 계산 함수 (신규 추가)
+function loadRankings() {
+    // 렌더링 함수 (내부에서 재사용)
+    const renderRankingList = (teams) => {
+        const container = document.getElementById('ranking-list');
+        container.innerHTML = '';
+
+        // 1. 필터링: 3경기 이상 (승+패 >= 3)
+        const eligibleTeams = teams.filter(t => (t.wins + t.losses) >= 3);
+
+        // 2. 승률 계산 및 데이터 가공
+        const rankedTeams = eligibleTeams.map(t => {
+            const total = t.wins + t.losses;
+            const rate = total === 0 ? 0 : (t.wins / total) * 100;
+            return { ...t, winRate: rate, totalGames: total };
+        });
+
+        // 3. 정렬: 승률(내림차순) -> 승리수(내림차순) -> 경기수(오름차순)
+        rankedTeams.sort((a, b) => {
+            if (b.winRate !== a.winRate) return b.winRate - a.winRate; // 승률 우선
+            if (b.wins !== a.wins) return b.wins - a.wins; // 승수 차선
+            return a.totalGames - b.totalGames; // 경기수 적은 순 (효율성)
+        });
+
+        // 4. 렌더링
+        if (rankedTeams.length === 0) {
+            container.innerHTML = '<tr><td colspan="3" class="p-4 text-center text-xs text-gray-400">랭킹 산정 기준(3경기)을 충족한 팀이 없습니다.</td></tr>';
+            return;
+        }
+
+        rankedTeams.forEach((t, index) => {
+            let rankColor = 'text-slate-400'; // 기본 순위 색상
+            let rankIcon = index + 1;
+            
+            if (index === 0) rankColor = 'text-yellow-500'; // 1등 금색
+            else if (index === 1) rankColor = 'text-slate-400'; // 2등 은색
+            else if (index === 2) rankColor = 'text-amber-700'; // 3등 동색
+
+            const html = `
+                <tr class="hover:bg-slate-50 transition">
+                    <td class="p-3 font-bold ${rankColor} w-8 text-center text-lg italic">${rankIcon}</td>
+                    <td class="font-bold text-slate-700 text-sm">
+                        ${t.name}
+                        <span class="text-[10px] font-normal text-gray-400 ml-1">(${t.wins}승 ${t.losses}패)</span>
+                    </td>
+                    <td class="text-right p-3 font-bold text-indigo-600 text-sm">${t.winRate.toFixed(0)}%</td>
+                </tr>
+            `;
+            container.innerHTML += html;
+        });
+    };
+
+    if (USE_MOCK_DATA) {
+        renderRankingList(MOCK_TEAMS_RANKING);
+        return;
+    }
+
+    // 실제 데이터 (Firebase)
+    const q = query(collection(db, "teams")); // 모든 팀 가져오기
+    onSnapshot(q, (snapshot) => {
+        const teams = [];
+        snapshot.forEach((doc) => {
+            teams.push(doc.data());
+        });
+        renderRankingList(teams);
+    });
+}
+
+
 // 팀 정보 로드 및 렌더링
 async function loadMyTeam() {
+    if (USE_MOCK_DATA) {
+        document.getElementById('my-team-name').innerText = "한신대 비상 (Mock)";
+        document.getElementById('my-team-stats-win').innerText = "22";
+        roster = MOCK_ROSTER;
+        renderRoster();
+        return;
+    }
+
     if(!myTeamId) return;
     
     onSnapshot(doc(db, "teams", myTeamId), (doc) => {
@@ -333,6 +464,11 @@ function renderRoster() {
     container.innerHTML = '';
 
     roster.forEach(p => {
+        let deleteBtn = '';
+        if (isEditMode) {
+            deleteBtn = `<button onclick="event.stopPropagation(); deletePlayerFromDB(${p.id})" class="text-red-500 ml-3 text-sm w-8 h-8 flex items-center justify-center bg-red-50 rounded-full"><i class="fa-solid fa-minus"></i></button>`;
+        }
+
         const roleBadge = p.role === 'Captain' ? '<i class="fa-solid fa-crown text-yellow-500 ml-1 text-xs"></i>' : '';
         
         let posColorClass = '';
@@ -348,33 +484,24 @@ function renderRoster() {
         const div = document.createElement('div');
         div.className = "flex items-center bg-white p-3 rounded-2xl border border-slate-100 shadow-sm";
         
-        let deleteBtnHtml = '';
-        if (isEditMode) {
-            deleteBtnHtml = `<button class="btn-delete-player text-red-500 ml-3 text-sm w-8 h-8 flex items-center justify-center bg-red-50 rounded-full"><i class="fa-solid fa-minus"></i></button>`;
-        }
-
         div.innerHTML = `
             <div class="w-10 h-10 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${posColorClass}">${p.pos}</div>
             <div class="ml-3 flex-1">
                 <p class="text-sm font-bold text-slate-800">${p.name} ${roleBadge}</p>
             </div>
-            ${deleteBtnHtml}
+            ${deleteBtn}
         `;
-
-        // 동적으로 생성된 버튼에 이벤트 리스너 추가 (버그 방지)
-        if (isEditMode) {
-            const delBtn = div.querySelector('.btn-delete-player');
-            delBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                deletePlayerFromDB(p.id);
-            });
-        }
-
         container.appendChild(div);
     });
 }
 
 async function addPlayerToDB(name, pos) {
+    if (USE_MOCK_DATA) {
+        roster.push({ id: Date.now(), name: name, pos: pos, role: '' });
+        renderRoster();
+        return;
+    }
+
     if(!myTeamId) return;
     const newPlayer = { id: Date.now(), name: name, pos: pos, role: '' };
     const newRoster = [...roster, newPlayer];
@@ -387,6 +514,13 @@ async function addPlayerToDB(name, pos) {
 }
 
 async function deletePlayerFromDB(id) {
+    if (USE_MOCK_DATA) {
+        if(!confirm('정말 삭제하시겠습니까? (Mock)')) return;
+        roster = roster.filter(p => p.id !== id);
+        renderRoster();
+        return;
+    }
+
     if(!myTeamId) return;
     if(!confirm('정말 삭제하시겠습니까?')) return;
 
@@ -399,7 +533,7 @@ async function deletePlayerFromDB(id) {
 }
 
 // -----------------------------------------------------------
-// 이벤트 리스너 연결 (DOM이 로드된 후 실행)
+// 이벤트 리스너 연결
 // -----------------------------------------------------------
 
 document.addEventListener('DOMContentLoaded', () => {
