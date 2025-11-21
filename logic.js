@@ -203,12 +203,21 @@ async function handleRegisterStep2() {
 
 // --- Data Logic ---
 
+// [수정] 매칭 로드 방식 변경 (색인 에러 방지)
+// 기존: where("status", "==", "recruiting") 사용 -> 색인 필요 -> 에러 발생 가능성 높음
+// 변경: orderBy("createdAt") 만 사용 -> 데이터 다 가져온 뒤 JS에서 필터링
 function loadMatches() {
-    const q = query(collection(db, "matches"), where("status", "==", "recruiting"), orderBy("createdAt", "desc"));
+    // 쿼리 단순화: 최신순 정렬만 수행
+    const q = query(collection(db, "matches"), orderBy("createdAt", "desc"));
+    
     onSnapshot(q, (snapshot) => {
         matchesData = [];
         snapshot.forEach((doc) => {
-            matchesData.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            // JS에서 '모집 중(recruiting)'인 것만 필터링해서 담기
+            if (data.status === 'recruiting') {
+                matchesData.push({ id: doc.id, ...data });
+            }
         });
         renderMatches('all'); 
     });
@@ -220,27 +229,34 @@ function renderMatches(filterType) {
     const filtered = matchesData.filter(m => filterType === 'all' || m.type === filterType || m.gender === filterType);
 
     if (filtered.length === 0) {
-        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">조건에 맞는 매칭이 없습니다.</div>`;
+        container.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">현재 모집 중인 매칭이 없습니다.</div>`;
         return;
     }
 
     filtered.forEach(m => {
-        const html = `
-            <div onclick="openMatchDetail('${m.id}')" class="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition active:scale-[0.98] cursor-pointer">
-                <div class="flex justify-between items-start mb-3">
-                    <div class="flex space-x-1">
-                        <span class="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold">${m.type === '9man' ? '9인제' : '6인제'}</span>
-                        <span class="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold">${m.gender === 'male' ? '남자' : (m.gender === 'female' ? '여자' : '혼성')}</span>
-                    </div>
-                    <span class="${m.badgeColor} text-[10px] font-bold px-2 py-1 rounded-full">${m.badge}</span>
+        const genderLabel = m.gender === 'male' ? '남자' : (m.gender === 'female' ? '여자' : '혼성');
+        const typeLabel = m.type === '9man' ? '9인제' : '6인제';
+        const badgeColor = m.badgeColor || 'bg-indigo-100 text-indigo-600';
+        const badge = m.badge || '모집중';
+        
+        const div = document.createElement('div');
+        div.className = "bg-white p-5 rounded-3xl shadow-sm border border-slate-100 hover:shadow-md transition active:scale-[0.98] cursor-pointer";
+        div.innerHTML = `
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex space-x-1">
+                    <span class="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold">${typeLabel}</span>
+                    <span class="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-bold">${genderLabel}</span>
                 </div>
-                <h3 class="font-bold text-lg text-slate-800 mb-1">${m.team}</h3>
-                <div class="flex items-center text-xs text-slate-500 mt-2 space-x-3">
-                    <span><i class="fa-regular fa-clock mr-1"></i> ${m.time}</span>
-                    <span><i class="fa-solid fa-location-dot mr-1"></i> ${m.loc}</span>
-                </div>
-            </div>`;
-        container.innerHTML += html;
+                <span class="${badgeColor} text-[10px] font-bold px-2 py-1 rounded-full">${badge}</span>
+            </div>
+            <h3 class="font-bold text-lg text-slate-800 mb-1">${m.team}</h3>
+            <div class="flex items-center text-xs text-slate-500 mt-2 space-x-3">
+                <span><i class="fa-regular fa-clock mr-1"></i> ${m.time}</span>
+                <span><i class="fa-solid fa-location-dot mr-1"></i> ${m.loc}</span>
+            </div>
+        `;
+        div.onclick = () => openMatchDetail(m.id);
+        container.appendChild(div);
     });
 }
 
@@ -263,7 +279,6 @@ window.openMatchDetail = async (id) => {
     const contactSection = document.getElementById('detail-contact-section');
     if (m.status === 'matched' && (m.teamId === myTeamId || m.guestId === myTeamId)) {
         contactSection.classList.remove('hidden');
-        // 내가 호스트면 게스트 연락처, 내가 게스트면 호스트 연락처 표시
         const contactToShow = m.teamId === myTeamId ? m.guestContact : m.hostContact;
         document.getElementById('detail-contact-id').innerText = contactToShow || "정보 없음";
     } else {
