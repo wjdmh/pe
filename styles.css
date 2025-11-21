@@ -14,11 +14,10 @@ body {
     to { opacity: 1; transform: translateY(0); } 
 }
 
-/* 스크롤바 숨김 */
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Glassmorphism 효과 */
+/* Glassmorphism */
 .glass { 
     background: rgba(255, 255, 255, 0.85); 
     backdrop-filter: blur(12px); 
@@ -39,7 +38,12 @@ body {
     height: 40px;
     animation: spin 1s linear infinite;
 }
-@keyframes spin { 
-    0% { transform: rotate(0deg); } 
-    100% { transform: rotate(360deg); } 
-}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* 포지션 뱃지 */
+.badge-pos { width: 2rem; height: 2rem; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: bold; flex-shrink: 0; }
+.pos-mb { background-color: #fee2e2; color: #991b1b; } 
+.pos-s { background-color: #fef3c7; color: #92400e; } 
+.pos-oh { background-color: #dbeafe; color: #1e40af; } 
+.pos-l { background-color: #d1fae5; color: #065f46; } 
+.pos-op { background-color: #f3e8ff; color: #6b21a8; }
