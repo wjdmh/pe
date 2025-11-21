@@ -16,11 +16,11 @@
             <i class="fa-solid fa-medal text-5xl"></i>
         </div>
         <h1 class="text-2xl font-extrabold italic tracking-tighter mb-2">Uni-League</h1>
-        <p class="text-xs font-light opacity-80">대학 스포츠의 새로운 시작</p>
+        <p class="text-xs font-light opacity-80">대학 스포츠의 시작</p>
         <div class="mt-8 w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
     </div>
 
-    <!-- 로딩 오버레이 (작업 중 표시) -->
+    <!-- 로딩 오버레이 -->
     <div id="loading-overlay" class="fixed inset-0 bg-black/40 z-[9998] flex items-center justify-center hidden">
         <div class="bg-white p-6 rounded-xl shadow-2xl flex flex-col items-center">
             <div class="loader mb-3"></div>
@@ -28,9 +28,9 @@
         </div>
     </div>
 
-    <!-- 모달 오버레이 -->
+    <!-- 모달 오버레이 (공통) -->
     <div id="modal-overlay" class="fixed inset-0 bg-black/60 z-[9000] hidden flex items-center justify-center p-4 backdrop-blur-sm">
-        <!-- 팀 상세 모달 -->
+        <!-- 팀 상세 -->
         <div id="modal-team-detail" class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl hidden relative">
             <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-times text-xl"></i></button>
             <div class="text-center mb-4">
@@ -46,18 +46,17 @@
             <div class="mb-2"><h4 class="font-bold text-xs text-slate-500 mb-2">선수 명단</h4><div id="modal-team-roster" class="space-y-2 max-h-40 overflow-y-auto pr-1"></div></div>
         </div>
 
-        <!-- 신청자 관리 모달 -->
+        <!-- 신청자 관리 -->
         <div id="modal-applicants" class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl hidden relative">
             <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-times text-xl"></i></button>
             <h3 class="text-lg font-bold text-slate-800 mb-4">신청 팀 목록</h3>
             <div id="applicant-list" class="space-y-3 max-h-60 overflow-y-auto"></div>
         </div>
 
-        <!-- 결과 입력 모달 -->
+        <!-- 결과 입력 -->
         <div id="modal-result-input" class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl hidden relative">
             <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fa-solid fa-times text-xl"></i></button>
             <h3 class="text-lg font-bold text-slate-800 mb-1">경기 결과 입력</h3>
-            <p class="text-xs text-slate-500 mb-4">정확한 세트 스코어를 입력해주세요.</p>
             <div class="flex justify-between items-center mb-6">
                 <div class="text-center w-1/3">
                     <p class="text-xs font-bold text-indigo-600 mb-1">우리 팀</p>
@@ -69,12 +68,13 @@
                     <input type="number" id="score-away" class="w-16 h-16 text-center text-2xl font-bold bg-slate-50 rounded-xl border focus:border-indigo-500" value="0">
                 </div>
             </div>
-            <button onclick="submitGameResult()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg">결과 전송 및 검증 요청</button>
+            <button onclick="submitGameResult()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-lg">전송</button>
         </div>
     </div>
 
     <!-- 모바일 컨테이너 -->
     <div class="max-w-md mx-auto min-h-screen bg-gray-50 shadow-2xl relative overflow-hidden">
+        
         <header class="glass fixed top-0 w-full max-w-md z-50 px-5 py-4 flex justify-between items-center">
             <div class="flex items-center cursor-pointer" id="header-logo">
                 <i class="fa-solid fa-medal text-indigo-600 text-xl mr-2"></i>
@@ -84,20 +84,16 @@
                 <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full tracking-wide">CAPTAIN</span>
                 <button onclick="router('locker')" class="relative text-gray-400 hover:text-indigo-600 transition">
                     <i class="fa-regular fa-bell text-xl"></i>
-                    <span id="noti-badge" class="hidden absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
                 </button>
             </div>
         </header>
         <div class="h-16"></div>
 
         <main id="app-container" class="p-5 pb-28">
-            <!-- 1. 로그인 (초기에 hidden) -->
+            
+            <!-- 1. 로그인 -->
             <div id="page-login" class="hidden fade-in flex flex-col justify-center min-h-[80vh]">
                 <div class="text-center mb-10">
-                    <div class="inline-block relative mb-4">
-                        <div class="absolute inset-0 bg-indigo-500 blur-2xl opacity-20 rounded-full"></div>
-                        <i class="fa-solid fa-trophy text-6xl text-indigo-600 relative z-10"></i>
-                    </div>
                     <h2 class="text-3xl font-extrabold text-slate-900 mb-2">대학 스포츠의<br>새로운 리그</h2>
                     <p class="text-slate-500 text-sm">투명한 전적 관리와<br>신뢰할 수 있는 매칭 플랫폼</p>
                 </div>
@@ -114,7 +110,7 @@
                 </div>
             </div>
 
-            <!-- 1-2. 가입 1단계 (초기에 hidden) -->
+            <!-- 1-2. 가입 -->
             <div id="page-register-email" class="hidden fade-in">
                 <div class="flex items-center mb-8 pt-2">
                     <button id="btn-back-login" class="mr-4 w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm"><i class="fa-solid fa-arrow-left"></i></button>
@@ -127,33 +123,25 @@
                 </div>
             </div>
 
-            <!-- 1-3. 가입 2단계 (초기에 hidden) -->
             <div id="page-team-setup" class="hidden fade-in">
                 <div class="flex items-center mb-8 pt-2">
                     <h2 class="text-2xl font-bold text-slate-800">팀 프로필 등록</h2>
                 </div>
                 <div class="space-y-4">
-                    <div class="bg-blue-50 p-4 rounded-2xl border border-blue-100 text-blue-800 text-sm mb-4">
-                        <i class="fa-solid fa-circle-info mr-2"></i>현재 가입자가 <strong>주장</strong>이 됩니다.
-                    </div>
                     <input type="text" id="team-name" placeholder="동아리/팀 이름 (예: 한신대 비상)" class="w-full p-4 bg-white rounded-2xl border border-slate-200 shadow-sm outline-none focus:border-indigo-500">
                     <input type="text" id="team-nickname" placeholder="내 닉네임 (주장명)" class="w-full p-4 bg-white rounded-2xl border border-slate-200 shadow-sm outline-none focus:border-indigo-500">
-                    <input type="text" id="team-kakao" placeholder="카카오톡 ID (매칭 성사 시 상대에게 공개)" class="w-full p-4 bg-white rounded-2xl border border-slate-200 shadow-sm outline-none focus:border-indigo-500">
-                    
-                    <div class="space-y-2">
-                        <label class="text-xs font-bold text-slate-400 ml-1">팀 실력 등급</label>
-                        <select id="team-level" class="w-full p-4 bg-white rounded-2xl border border-slate-200 shadow-sm outline-none focus:border-indigo-500">
-                            <option value="A">A: 선수 출신 다수</option>
-                            <option value="B" selected>B: 대회 입상권</option>
-                            <option value="C">C: 친목 위주</option>
-                            <option value="D">D: 초보자 환영</option>
-                        </select>
-                    </div>
+                    <input type="text" id="team-kakao" placeholder="카카오톡 ID (매칭 성사 시 공개)" class="w-full p-4 bg-white rounded-2xl border border-slate-200 shadow-sm outline-none focus:border-indigo-500">
+                    <select id="team-level" class="w-full p-4 bg-white rounded-2xl border border-slate-200 shadow-sm outline-none focus:border-indigo-500">
+                        <option value="A">A: 선수 출신 다수</option>
+                        <option value="B" selected>B: 대회 입상권</option>
+                        <option value="C">C: 친목 위주</option>
+                        <option value="D">D: 초보자 환영</option>
+                    </select>
                     <button id="btn-reg-step2" class="w-full bg-indigo-600 text-white font-bold py-4 rounded-2xl shadow-lg mt-4">등록 완료</button>
                 </div>
             </div>
 
-            <!-- 2. 홈 (초기에 hidden) -->
+            <!-- 2. 홈 -->
             <div id="page-home" class="hidden fade-in">
                 <div class="mb-6 pt-2">
                     <p class="text-xs text-slate-500 font-medium mb-1">오늘 컨디션 어때요?</p>
@@ -184,7 +172,7 @@
                 </div>
             </div>
 
-            <!-- 3. 라커룸 (초기에 hidden) -->
+            <!-- 3. 라커룸 -->
             <div id="page-locker" class="hidden fade-in">
                 <div class="flex items-center justify-between mb-6 pt-2">
                     <h2 class="text-2xl font-bold text-slate-800">라커룸</h2>
@@ -231,23 +219,24 @@
                         </div>
                     </div>
                 </div>
+                <!-- [중요] UI 개선: 카드형 리스트 -->
                 <div id="locker-matches-view" class="hidden">
                     <div class="mb-6">
-                        <h3 class="font-bold text-sm text-slate-700 mb-3 pl-1 border-l-4 border-indigo-500 ml-1 pl-2">내가 모집 중인 경기</h3>
-                        <div id="my-hosting-list" class="space-y-3 min-h-[50px] text-xs text-slate-400">불러오는 중...</div>
+                        <h3 class="font-bold text-sm text-slate-700 mb-3 pl-2 border-l-4 border-indigo-500">내가 모집 중인 경기</h3>
+                        <div id="my-hosting-list" class="space-y-3 min-h-[50px] text-xs text-slate-400"></div>
                     </div>
                     <div class="mb-6">
-                        <h3 class="font-bold text-sm text-slate-700 mb-3 pl-1 border-l-4 border-pink-500 ml-1 pl-2">내가 보낸 신청</h3>
-                        <div id="my-applying-list" class="space-y-3 min-h-[50px] text-xs text-slate-400">신청 내역 없음</div>
+                        <h3 class="font-bold text-sm text-slate-700 mb-3 pl-2 border-l-4 border-pink-500">내가 보낸 신청</h3>
+                        <div id="my-applying-list" class="space-y-3 min-h-[50px] text-xs text-slate-400"></div>
                     </div>
                     <div class="mb-6">
-                        <h3 class="font-bold text-sm text-slate-700 mb-3 pl-1 border-l-4 border-green-500 ml-1 pl-2">예정된 경기 / 결과 입력</h3>
-                        <div id="my-confirmed-list" class="space-y-3 min-h-[50px] text-xs text-slate-400">예정된 경기 없음</div>
+                        <h3 class="font-bold text-sm text-slate-700 mb-3 pl-2 border-l-4 border-green-500">경기 결과 입력</h3>
+                        <div id="my-confirmed-list" class="space-y-3 min-h-[50px] text-xs text-slate-400"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 4. 글쓰기 (초기에 hidden) -->
+            <!-- 4. 글쓰기 -->
             <div id="page-write-post" class="hidden fade-in">
                 <div class="flex items-center mb-8 pt-2">
                     <button id="btn-back-home" class="mr-4 w-8 h-8 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 shadow-sm"><i class="fa-solid fa-arrow-left"></i></button>
@@ -270,16 +259,22 @@
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Info</label>
+                        <!-- [중요] 아이폰에서 클릭해야 보이는 문제 해결을 위한 라벨 추가 -->
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-2 ml-1">Details</label>
                         <input type="text" id="write-location" placeholder="장소 (예: 한신대 체육관)" class="w-full p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm outline-none focus:ring-2 focus:ring-indigo-500 mb-3">
-                        <input type="datetime-local" id="write-time" class="w-full p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-                        <input type="text" id="write-note" placeholder="비고 (예: 주차 협소, 선출 포함)" class="w-full p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm outline-none focus:ring-2 focus:ring-indigo-500 mt-3">
+                        
+                        <div class="mb-3">
+                            <p class="text-xs text-slate-500 mb-1 ml-1">날짜 및 시간 선택</p>
+                            <input type="datetime-local" id="write-time" class="w-full p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <input type="text" id="write-note" placeholder="비고 (예: 주차 협소, 선출 포함)" class="w-full p-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-sm outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                     <button id="btn-submit-post" class="w-full bg-slate-900 text-white font-bold py-4 rounded-2xl shadow-xl mt-4">모집 시작하기</button>
                 </div>
             </div>
 
-             <!-- 5. 매칭 상세 (초기에 hidden) -->
+             <!-- 5. 매칭 상세 -->
              <div id="page-match-detail" class="hidden fade-in">
                  <div class="relative h-64 bg-slate-800 -mx-5 -mt-5 mb-6 p-6 flex flex-col justify-end overflow-hidden">
                     <img src="https://images.unsplash.com/photo-1612872087720-48ca45ddce4e?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" class="absolute inset-0 w-full h-full object-cover opacity-40">
